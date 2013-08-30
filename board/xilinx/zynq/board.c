@@ -24,18 +24,25 @@
 #include <asm/io.h>
 #include <netdev.h>
 #include <zynqpl.h>
+#include <fpga.h>
 #include <asm/arch/hardware.h>
 #include <asm/arch/sys_proto.h>
+
+#ifdef CONFIG_ZYNQ_RCE
+#include "rce.h"
+#endif
+
+#define MMC_DEV_NUM        0
 
 DECLARE_GLOBAL_DATA_PTR;
 
 /* Bootmode setting values */
-#define BOOT_MODES_MASK		0x0000000F
-#define QSPI_MODE		0x00000001
-#define NOR_FLASH_MODE		0x00000002
-#define NAND_FLASH_MODE		0x00000004
-#define SD_MODE			0x00000005
-#define JTAG_MODE		0x00000000
+#define BOOT_MODES_MASK    0x0000000F
+#define QSPI_MODE          0x00000001
+#define NOR_FLASH_MODE     0x00000002
+#define NAND_FLASH_MODE    0x00000004
+#define SD_MODE            0x00000005
+#define JTAG_MODE          0x00000000
 
 #ifdef CONFIG_FPGA
 Xilinx_desc fpga;
@@ -46,6 +53,16 @@ Xilinx_desc fpga020 = XILINX_XC7Z020_DESC(0x20);
 Xilinx_desc fpga030 = XILINX_XC7Z030_DESC(0x30);
 Xilinx_desc fpga045 = XILINX_XC7Z045_DESC(0x45);
 Xilinx_desc fpga100 = XILINX_XC7Z100_DESC(0x100);
+#endif
+
+#ifdef CONFIG_ZYNQ_LOAD_FPGA
+#define FPGA_DEV_NUM       0
+void set_fpga_freq(void);
+#endif
+
+#ifdef CONFIG_ZYNQ_RCE
+#define GROUP_NAME_SIZE    32
+void configure_bsi(void);
 #endif
 
 int board_init(void)
@@ -98,6 +115,72 @@ int board_init(void)
 
 int board_late_init(void)
 {
+#ifdef CONFIG_FPGA
+#ifdef CONFIG_ZYNQ_LOAD_FPGA
+    cmd_tbl_t *bcmd;
+    ulong size;
+    char *filesize;
+    char * const argv[6] = { "fatload", "mmc", "0:1", FPGA_LOAD_ADDR_STR, FPGA_BIT_FILE, NULL };
+	unsigned long time;    
+    
+    /* 
+     * Update fpga clock frequencies prior to
+     * loading the fpga fabric.
+     */
+    set_fpga_freq();
+    
+	/* Locate the fatload command */
+	bcmd = find_cmd("fatload");
+	if (!bcmd) {
+		printf("Error - 'fatload' command not present.\n");
+		return -1;
+	}
+
+    /* 
+     * Load the bistream file from the 
+     * FAT filesystem into memory.
+     */
+	if (do_fat_fsload(bcmd, 0, 5, argv) != 0)
+      {
+        printf("error loading bitstream file %s\n",FPGA_BIT_FILE);
+		return -1;
+      }
+
+    /* 
+     * After loading, the filesize environment variable
+     * is populated with the file size.
+     */
+    filesize = getenv("filesize");
+	if (NULL == filesize)
+      {
+      printf("filesize not in environment!\n");
+      return -1;
+      }
+
+    /* convert file size string into a longword */
+    size = simple_strtoul(filesize, NULL, 16);    
+
+    /*
+     * Load FPGA fabric with the bitstream.
+     */
+	time = get_timer(0);
+     
+    fpga_loadbitstream(FPGA_DEV_NUM, (char *)FPGA_LOAD_ADDR, (size_t)size);
+
+	time = get_timer(time);
+
+	printf("%d bitstream bytes loaded in %lu ms", (int)size, time);
+	if (time > 0) {
+		puts(" (");
+		print_size(size / time * 1000, "/s");
+		puts(")");
+	}
+	puts("\n");
+    
+#endif /* CONFIG_ZYNQ_LOAD_FPGA */
+#endif /* CONFIG_FPGA */
+
+#ifndef CONFIG_ZYNQ_RCE
 	switch ((zynq_slcr_get_boot_mode()) & BOOT_MODES_MASK) {
 	case QSPI_MODE:
 		setenv("modeboot", "qspiboot");
@@ -118,6 +201,12 @@ int board_late_init(void)
 		setenv("modeboot", "");
 		break;
 	}
+#else /* !CONFIG_ZYNQ_RCE */
+
+    /* configure the bsi */
+    configure_bsi();
+
+#endif /* !CONFIG_ZYNQ_RCE */
 
 	return 0;
 }
@@ -184,3 +273,133 @@ int dram_init(void)
 
 	return 0;
 }
+
+void show_boot_progress(int val)
+{    
+    if (val == BOOTSTAGE_ID_RUN_OS)
+      rce_bsi_status(BSI_BOOT_RESPONSE_OS_HANDOFF);
+}
+
+#ifdef CONFIG_FPGA
+#ifdef CONFIG_ZYNQ_LOAD_FPGA
+void set_fpga_freq(void)
+  {
+  char  env[32];
+  char *tmp;
+  int i;
+  uint32_t freq = 0;
+
+  /* locate any FPGA clock frequencies in environment */
+  
+  for (i=0; i<NUM_FPGA_CLKS; i++)
+    {
+    sprintf(env,"fpga%d_clk",i);
+    tmp = getenv(env);
+    if (tmp != NULL)
+      {      
+      /* convert frequency string into a longword */
+      freq = simple_strtoul(tmp, NULL, 10);
+      
+      /* update the clock frequency */
+      rce_fpga_clock(i,freq);
+      }
+    }
+  }
+#endif /* CONFIG_ZYNQ_LOAD_FPGA */
+#endif /* CONFIG_FPGA */
+
+#ifdef CONFIG_ZYNQ_RCE
+void configure_bsi(void)
+  {
+  union {
+    uint8_t  u8[8];
+    uint64_t u64;
+  } mac;
+  uint32_t phy = 0;
+  uint32_t dtm = 0;  
+  char *tmp;
+
+#ifdef CONFIG_BSI_ENV
+  char group[GROUP_NAME_SIZE];
+  uint32_t cluster = 1;
+  uint32_t bay = 1;
+  uint32_t element = 1;
+  int i;
+
+  /*
+   * Set the BSI cluster configuration using
+   * the environment variables.
+   * This is for testing purposes only.
+   */
+  tmp = getenv("bsi_group");
+  if (tmp != NULL)
+    {
+    int len = strlen(tmp);
+    memset(group,0,GROUP_NAME_SIZE);
+    if(len > GROUP_NAME_SIZE)
+      len = GROUP_NAME_SIZE;
+    for(i=0; i<len; i++)
+      group[i] = *tmp++;
+
+    tmp = getenv("bsi_cluster");
+	if (tmp != NULL)
+      {
+      cluster = simple_strtoul(tmp, NULL, 16);
+      }
+
+    tmp = getenv("bsi_bay");
+	if (tmp != NULL)
+      {
+      bay = simple_strtoul(tmp, NULL, 16);
+      }
+
+    tmp = getenv("bsi_element");
+	if (tmp != NULL)
+      {
+      element = simple_strtoul(tmp, NULL, 16);
+      }
+
+    rce_bsi_group(group); 
+    rce_bsi_cluster(cluster,bay,element);
+    }
+#endif /* CONFIG_BSI_ENV */
+
+  /*
+   * Get the MAC address using
+   * the ethaddr environment variable.
+   */
+
+  mac.u64 = 0;
+  if (!eth_getenv_enetaddr("ethaddr",mac.u8))
+    {
+    printf("valid ethaddr not in environment!\nNet:   ");
+    }
+
+  /*
+   * Get the PHY configuration using
+   * the phycfg environment variable.
+   */
+  tmp = getenv("phycfg");
+  if (tmp == NULL)
+    {
+    printf("phycfg not in environment!\nNet:   ");
+    }
+  else
+    {     
+    phy = simple_strtoul(tmp, NULL, 16);
+    }
+
+  /*
+   * Set the dtm configuration using
+   * the cfgdtm environment variable.
+   * The value is ignored.
+   */
+  tmp = getenv("cfgdtm");
+  if (tmp != NULL)
+    {     
+    dtm = 1;
+    }
+
+  rce_init(mac.u64,phy,dtm);
+  }
+#endif /* CONFIG_ZYNQ_RCE */

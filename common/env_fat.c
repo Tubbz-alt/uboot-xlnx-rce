@@ -110,7 +110,7 @@ int saveenv(void)
 
 void env_relocate_spec(void)
 {
-	char buf[CONFIG_ENV_SIZE];
+	char buf[CONFIG_ENV_SIZE] __attribute__ ((aligned(ARCH_DMA_MINALIGN)));
 	block_dev_desc_t *dev_desc = NULL;
 	int dev = FAT_ENV_DEVICE;
 	int part = FAT_ENV_PART;

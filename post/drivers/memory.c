@@ -495,13 +495,14 @@ int arch_memory_test_prepare(u32 *vstart, u32 *size, phys_addr_t *phys_offset)
 {
 	bd_t *bd = gd->bd;
 
-	*vstart = CONFIG_SYS_SDRAM_BASE;
-	*size = (gd->ram_size >= 256 << 20 ?
-			256 << 20 : gd->ram_size) - (1 << 20);
+	*vstart = CONFIG_SYS_MEMTEST_START;
+	*size =   CONFIG_SYS_MEMTEST_END - CONFIG_SYS_MEMTEST_START;
 
+#if 0
 	/* Limit area to be tested with the board info struct */
 	if ((*vstart) + (*size) > (ulong)bd)
 		*size = (ulong)bd - *vstart;
+#endif
 
 	return 0;
 }
@@ -548,11 +549,11 @@ int memory_post_test(int flags)
 	arch_memory_test_prepare(&vstart, &memsize, &phys_offset);
 
 	do {
-		if (flags & POST_SLOWTEST) {
-			ret = memory_post_tests(vstart, memsize);
-		} else {			/* POST_NORMAL */
-			ret = memory_post_test_regions(vstart, memsize);
-		}
+          printf("memory_post_test regions start 0x%x size 0x%x\n",vstart,memsize);
+		  ret = memory_post_test_regions(vstart, memsize);
+
+          printf("memory_post_test slow start 0x%x size 0x%x\n",vstart,memsize);
+		  ret = memory_post_tests(vstart, memsize);		
 	} while (!ret &&
 		!arch_memory_test_advance(&vstart, &memsize, &phys_offset));
 

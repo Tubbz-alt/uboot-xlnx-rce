@@ -23,14 +23,22 @@
 
 include $(TOPDIR)/config.mk
 
-LIB	= $(obj)lib$(BOARD).o
+# include the DAT build configuration
+datroot  := $(DAT_ROOT)
+datbuild := $(datroot)/build
+dattgt   := arm-eabi-rceCA9-opt
 
-COBJS-y	:= board.o
+CFLAGS   += -DDAT_BOARD_SUBDIR=rce -DDAT_GENERATION_SUBDIR=gen3 -I$(datroot)
 
-COBJS	:= $(sort $(COBJS-y))
+LIB	  = $(obj)lib$(BOARD).o
 
-SRCS	:= $(COBJS:.o=.c)
-OBJS	:= $(addprefix $(obj),$(COBJS))
+COBJS-y	 := rce.o board.o
+
+COBJS	 := $(sort $(COBJS-y))
+
+SRCS	 := $(COBJS:.o=.c)
+OBJS	 := $(addprefix $(obj),$(COBJS))
+OBJS     += $(datbuild)/tool/lib/$(dattgt)/libmap.a  $(datbuild)/tool/lib/$(dattgt)/libport.a $(datbuild)/cm/lib/$(dattgt)/libboot.a
 
 $(LIB):	$(obj).depend $(OBJS)
 	$(call cmd_link_o_target, $(OBJS))

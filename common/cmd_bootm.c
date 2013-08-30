@@ -132,6 +132,8 @@ static boot_os_fn do_bootm_ose;
 static boot_os_fn do_bootm_plan9;
 #endif
 #if defined(CONFIG_CMD_ELF)
+extern int valid_elf_image(unsigned long addr);
+extern unsigned long load_elf_image_phdr(unsigned long addr);
 static boot_os_fn do_bootm_vxworks;
 static boot_os_fn do_bootm_qnxelf;
 int do_bootvx(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]);
@@ -151,7 +153,7 @@ static boot_os_fn *boot_os[] = {
 #ifdef CONFIG_LYNXKDI
 	[IH_OS_LYNXOS] = do_bootm_lynxkdi,
 #endif
-#ifdef CONFIG_BOOTM_RTEMS
+#if defined(CONFIG_BOOTM_RTEMS) && defined(CONFIG_CMD_ELF)
 	[IH_OS_RTEMS] = do_bootm_rtems,
 #endif
 #if defined(CONFIG_BOOTM_OSE)
@@ -432,7 +434,7 @@ static int bootm_load_os(image_info_t os, ulong *load_end, int boot_progress)
 		printf("Unimplemented compression type %d\n", comp);
 		return BOOTM_ERR_UNIMPLEMENTED;
 	}
-
+    
 	flush_cache(load, (*load_end - load) * sizeof(ulong));
 
 	puts("OK\n");
@@ -1568,11 +1570,12 @@ static int do_bootm_lynxkdi(int flag, int argc, char * const argv[],
 }
 #endif /* CONFIG_LYNXKDI */
 
-#ifdef CONFIG_BOOTM_RTEMS
+#if defined(CONFIG_BOOTM_RTEMS) && defined(CONFIG_CMD_ELF)
 static int do_bootm_rtems(int flag, int argc, char * const argv[],
 			   bootm_headers_t *images)
 {
 	void (*entry_point)(bd_t *);
+    unsigned long addr;
 
 	if ((flag != 0) && (flag != BOOTM_STATE_OS_GO))
 		return 1;
@@ -1584,7 +1587,13 @@ static int do_bootm_rtems(int flag, int argc, char * const argv[],
 	}
 #endif
 
-	entry_point = (void (*)(bd_t *))images->ep;
+    /* Load the RTEMS elf via program headers */
+	if (!valid_elf_image(images->os.image_start))
+		return 1;
+
+    addr = load_elf_image_phdr(images->os.image_start);
+
+	entry_point = (void (*)(bd_t *))addr;
 
 	printf("## Transferring control to RTEMS (at address %08lx) ...\n",
 		(ulong)entry_point);

@@ -58,6 +58,14 @@
 #define CONFIG_ZYNQ_SERIAL
 #endif
 
+#define XILINX_GPIO_BASEADDR 0xE0001000
+/* gpio */
+#ifdef XILINX_GPIO_BASEADDR
+	#define CONFIG_XILINX_GPIO
+	#define	CONFIG_SYS_GPIO_0		1
+	#define	CONFIG_SYS_GPIO_0_ADDR		XILINX_GPIO_BASEADDR
+#endif
+
 /* Ethernet driver */
 #if defined(CONFIG_ZYNQ_GEM0) || defined(CONFIG_ZYNQ_GEM1)
 # define CONFIG_NET_MULTI
@@ -92,6 +100,9 @@
 #define CONFIG_OF_LIBFDT
 
 #include <config_cmd_default.h>
+
+/* Booting of elf modules */
+#define CONFIG_CMD_ELF
 
 #ifdef CONFIG_SYS_ENET
 # define CONFIG_CMD_PING
@@ -184,7 +195,9 @@
 /* Environment in NAND flash */
 #  define CONFIG_ENV_IS_IN_NAND
 # elif defined(CONFIG_SYS_NO_FLASH)
+# ifndef CONFIG_ENV_IS_IN_FAT
 #  define CONFIG_ENV_IS_NOWHERE
+# endif
 # endif
 
 # define CONFIG_ENV_SECT_SIZE		CONFIG_ENV_SIZE
@@ -200,51 +213,34 @@
 
 /* Default environment */
 #define CONFIG_EXTRA_ENV_SETTINGS	\
-	"ethaddr=00:0a:35:00:01:22\0"	\
 	"kernel_image=uImage\0"	\
+	"ramdisk_kernel=uImage\0"	\
 	"ramdisk_image=uramdisk.image.gz\0"	\
+	"ramdisk_devicetree=devicetree_ramdisk.dtb\0"	\
 	"devicetree_image=devicetree.dtb\0"	\
-	"bitstream_image=system.bit.bin\0"	\
+	"rtems_image=urtems.elf\0"	\
+	"bitstream_image=fpga.bit\0"	\
 	"loadbit_addr=0x100000\0"	\
-	"kernel_size=0x500000\0"	\
-	"devicetree_size=0x20000\0"	\
-	"ramdisk_size=0x5E0000\0"	\
-	"fdt_high=0x20000000\0"	\
-	"initrd_high=0x20000000\0"	\
 	"mmc_loadbit_fat=echo Loading bitstream from SD/MMC/eMMC to RAM.. && " \
 		"mmcinfo && " \
-		"fatload mmc 0 ${loadbit_addr} ${bitstream_image} && " \
-		"fpga load 0 ${loadbit_addr} ${filesize}\0" \
-	"norboot=echo Copying Linux from NOR flash to RAM... && " \
-		"cp.b 0xE2100000 0x3000000 ${kernel_size} && " \
-		"cp.b 0xE2600000 0x2A00000 ${devicetree_size} && " \
-		"echo Copying ramdisk... && " \
-		"cp.b 0xE2620000 0x2000000 ${ramdisk_size} && " \
-		"bootm 0x3000000 0x2000000 0x2A00000\0" \
-	"qspiboot=echo Copying Linux from QSPI flash to RAM... && " \
-		"sf probe 0 0 0 && " \
-		"sf read 0x3000000 0x100000 ${kernel_size} && " \
-		"sf read 0x2A00000 0x600000 ${devicetree_size} && " \
-		"echo Copying ramdisk... && " \
-		"sf read 0x2000000 0x620000 ${ramdisk_size} && " \
-		"bootm 0x3000000 0x2000000 0x2A00000\0" \
-	"sdboot=echo Copying Linux from SD to RAM... && " \
+		"fatload mmc 0:1 ${loadbit_addr} ${bitstream_image} && " \
+		"fpga loadb 0 ${loadbit_addr} ${filesize}\0" \
+    "modeboot=sdboot_ext3\0"	\
+	"sdboot_rtems=echo Copying RTEMS from SD to RAM... && " \
 		"mmcinfo && " \
-		"fatload mmc 0 0x3000000 ${kernel_image} && " \
-		"fatload mmc 0 0x2A00000 ${devicetree_image} && " \
-		"fatload mmc 0 0x2000000 ${ramdisk_image} && " \
+		"fatload mmc 0:5 0x3000000 ${rtems_image} && " \
+		"bootm 0x3000000\0" \
+	"sdboot_ramdisk=echo Copying Linux from SD to RAM... && " \
+		"mmcinfo && " \
+		"fatload mmc 0:6 0x3000000 ${ramdisk_kernel} && " \
+		"fatload mmc 0:6 0x2A00000 ${ramdisk_devicetree} && " \
+		"fatload mmc 0:6 0x2000000 ${ramdisk_image} && " \
 		"bootm 0x3000000 0x2000000 0x2A00000\0" \
-	"nandboot=echo Copying Linux from NAND flash to RAM... && " \
-		"nand read 0x3000000 0x100000 ${kernel_size} && " \
-		"nand read 0x2A00000 0x600000 ${devicetree_size} && " \
-		"echo Copying ramdisk... && " \
-		"nand read 0x2000000 0x620000 ${ramdisk_size} && " \
-		"bootm 0x3000000 0x2000000 0x2A00000\0" \
-	"jtagboot=echo TFTPing Linux to RAM... && " \
-		"tftp 0x3000000 ${kernel_image} && " \
-		"tftp 0x2A00000 ${devicetree_image} && " \
-		"tftp 0x2000000 ${ramdisk_image} && " \
-		"bootm 0x3000000 0x2000000 0x2A00000\0"
+	"sdboot_ext3=echo Copying Linux from SD to RAM... && " \
+		"mmcinfo && " \
+		"fatload mmc 0:6 0x3000000 ${kernel_image} && " \
+		"fatload mmc 0:6 0x2A00000 ${devicetree_image} && " \
+		"bootm 0x3000000 - 0x2A00000\0"
 
 /* default boot is according to the bootmode switch settings */
 #define CONFIG_BOOTCOMMAND		"run $modeboot"
@@ -264,13 +260,23 @@
 #endif
 
 /* Physical Memory map */
-#define CONFIG_NR_DRAM_BANKS		1
-#define PHYS_SDRAM_1			0
-#define CONFIG_SYS_TEXT_BASE		0x04000000
+#define CONFIG_NR_DRAM_BANKS        1
+#define PHYS_SDRAM_1                0
 
-#define CONFIG_SYS_MEMTEST_START	PHYS_SDRAM_1
-#define CONFIG_SYS_MEMTEST_END		(CONFIG_SYS_MEMTEST_START + \
-					PHYS_SDRAM_1_SIZE - (16 * 1024 * 1024))
+#ifndef CONFIG_ZYNQ_MEM_TEST
+#define CONFIG_SYS_TEXT_BASE		0x04000000
+#else
+/* load u-boot image at top of 512Mbyte */
+#define CONFIG_SYS_TEXT_BASE		0x1FF00000
+
+/* POST support - memory test */
+#define CONFIG_POST		CONFIG_SYS_POST_MEMORY
+
+#define CONFIG_SYS_POST_WORD_ADDR   0xFFFE0000
+#endif /* CONFIG_ZYNQ_MEM_TEST */
+
+#define CONFIG_SYS_MEMTEST_START    0
+#define CONFIG_SYS_MEMTEST_END      CONFIG_SYS_TEXT_BASE
 
 #define CONFIG_SYS_INIT_RAM_ADDR	0xFFFF0000
 #define CONFIG_SYS_INIT_RAM_SIZE	0x1000
@@ -283,6 +289,11 @@
 #define CONFIG_FPGA_XILINX
 #define CONFIG_FPGA_ZYNQPL
 #define CONFIG_CMD_FPGA
+
+/* for auto-load of fpga bitstream */
+#define FPGA_BIT_FILE      "fpga.bit"
+#define FPGA_LOAD_ADDR      0x1000000
+#define FPGA_LOAD_ADDR_STR "0x1000000"
 
 /* FIT support */
 #define CONFIG_FIT		1

@@ -135,10 +135,10 @@ int sdhci_send_command(struct mmc *mmc, struct mmc_cmd *cmd,
 	int trans_bytes = 0, is_aligned = 1;
 	u32 mask, flags, mode;
 	unsigned int timeout, start_addr = 0;
-	unsigned int retry = 10000;
+	unsigned int retry = 100*10000; /* SEM increase by factor of 100 */
 
-	/* Wait max 10 ms */
-	timeout = 10;
+	/* Wait max 100 ms */
+	timeout = 100; /* SEM update from 10 to 100 */
 
 	sdhci_writel(host, SDHCI_INT_ALL_MASK, SDHCI_INT_STATUS);
 	mask = SDHCI_CMD_INHIBIT | SDHCI_DATA_INHIBIT;

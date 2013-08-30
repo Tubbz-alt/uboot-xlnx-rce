@@ -110,6 +110,7 @@ static int do_fat_fswrite(cmd_tbl_t *cmdtp, int flag,
 	disk_partition_t info;
 	int dev = 0;
 	int part = 1;
+	unsigned long time;    
 
 	if (argc < 5)
 		return cmd_usage(cmdtp);
@@ -128,6 +129,8 @@ static int do_fat_fswrite(cmd_tbl_t *cmdtp, int flag,
 	addr = simple_strtoul(argv[3], NULL, 16);
 	count = simple_strtoul(argv[5], NULL, 16);
 
+	time = get_timer(0);
+
 	size = file_fat_write(argv[4], (void *)addr, count);
 	if (size == -1) {
 		printf("\n** Unable to write \"%s\" from %s %d:%d **\n",
@@ -135,7 +138,17 @@ static int do_fat_fswrite(cmd_tbl_t *cmdtp, int flag,
 		return 1;
 	}
 
-	printf("%ld bytes written\n", size);
+	time = get_timer(time);
+
+	printf("%d bytes written in %lu ms", (int)size, time);
+	if (time > 0) {
+		puts(" (");
+		print_size(size / time * 1000, "/s");
+		puts(")");
+	}
+	puts("\n");
+
+//	printf("%ld bytes written\n", size);
 
 	return 0;
 }

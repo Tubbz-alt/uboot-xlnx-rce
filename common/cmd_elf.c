@@ -24,7 +24,7 @@
 DECLARE_GLOBAL_DATA_PTR;
 #endif
 
-static unsigned long load_elf_image_phdr(unsigned long addr);
+unsigned long load_elf_image_phdr(unsigned long addr);
 static unsigned long load_elf_image_shdr(unsigned long addr);
 
 /* Allow ports to override the default behavior */
@@ -198,7 +198,7 @@ int do_bootvx(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	 * defaults to 0x4200
 	 */
 	tmp = getenv("bootaddr");
-	if (!tmp)
+	if (tmp)
 		bootaddr = CONFIG_SYS_VXWORKS_BOOT_ADDR;
 	else
 		bootaddr = simple_strtoul(tmp, NULL, 16);
@@ -273,7 +273,7 @@ int do_bootvx(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
  * A very simple elf loader, assumes the image is valid, returns the
  * entry point address.
  * ====================================================================== */
-static unsigned long load_elf_image_phdr(unsigned long addr)
+unsigned long load_elf_image_phdr(unsigned long addr)
 {
 	Elf32_Ehdr *ehdr;		/* Elf header structure pointer     */
 	Elf32_Phdr *phdr;		/* Program header structure pointer */
@@ -290,9 +290,11 @@ static unsigned long load_elf_image_phdr(unsigned long addr)
 			i, dst, phdr->p_filesz);
 		if (phdr->p_filesz)
 			memcpy(dst, src, phdr->p_filesz);
+#if 0            
 		if (phdr->p_filesz != phdr->p_memsz)
 			memset(dst + phdr->p_filesz, 0x00,
 				phdr->p_memsz - phdr->p_filesz);
+#endif                
 		flush_cache((unsigned long)dst, phdr->p_filesz);
 		++phdr;
 	}
