@@ -19,6 +19,7 @@
 
 #include "datCode.hh"
 #include "rce.h"
+#include <config.h>
 
 #include DAT_PUBLIC(tool,    map,  Lookup.h)
 #include DAT_PUBLIC(tool,    map,  MapAxi.h)
@@ -33,6 +34,8 @@
 #define GPIO_BANK0_WRITE_ADDR           0xE000A040
 #define GPIO_BANK0_READ_ADDR            0xE000A060
 #define GPIO_CFG_VAL                    0x00004000
+#define GPIO_DTM_MASK                   (1 << 13)
+#define GPIO_DTM_SHIFT                  18
 
 /* SLCR FPGA clock registers */
 #define SLCR_FPGA_CLK_CTL_BASE          0xF8000170
@@ -150,24 +153,29 @@ int ocm_init(Bsi bsi, Ocm ocm)
 int gpio_init(void)
   {
   uint32_t gpio;
+  int dtm = 0;
 
-    /* Read the GPIO bank 0 value */
+  /* Read the GPIO bank 0 value */
   gpio = *(uint32_t *)GPIO_BANK0_READ_ADDR;
+    
+  /* Check dtm bit to determine if this platform is a dtm */
+  if (!((gpio >> GPIO_DTM_SHIFT) & GPIO_DTM_MASK))
+    dtm = 1;
 
-  /* Configure the GPIO pin as an output */
+  /* Configure the BSI ready GPIO pin as an output */
   *(uint32_t *)GPIO_DIRM0_ADDR = GPIO_CFG_VAL;
 
-  /* Assert the pin */
+  /* Assert the BSI ready pin */
   *(uint32_t *)GPIO_BANK0_WRITE_ADDR = gpio | GPIO_CFG_VAL;
 
   /* 
-   * Enable GPIO pin output.
+   * Enable GPIO BSI ready pin output.
    * This tells the IPMI Controller that the
    * BSI parameters are ready for reading.
    */
   *(uint32_t *)GPIO_OEN0_ADDR  = GPIO_CFG_VAL;
   
-  return 0;
+  return dtm;
 }
 
 /*
@@ -177,12 +185,13 @@ int gpio_init(void)
 ** --
 */
 
-void rce_init(uint64_t mac, uint32_t phy, uint32_t dtm)
+void rce_init(uint64_t mac, uint32_t phy)
 {
   Axi axi = 0;
   Bsi bsi = 0;
   Ocm ocm = 0;
   unsigned long time;
+  uint32_t isDtm = 0;
 
   bsi = LookupBsi();
   if (bsi)
@@ -202,11 +211,13 @@ void rce_init(uint64_t mac, uint32_t phy, uint32_t dtm)
         }
       }
     
-    /* initialize the gpio and signal ipmi */
-    gpio_init();
+#ifndef CONFIG_BSI_ENV
+    /* initialize the gpio, signal ipmi, and get dtm */
+    isDtm = gpio_init();
+#endif    
 
     /* cm init must be executed after the ipmi has been signaled */
-    if (axi && ocm && dtm)    
+    if (axi && ocm && isDtm)    
       {
       BsiWrite32(bsi,BSI_BOOT_RESPONSE_OFFSET,BSI_BOOT_RESPONSE_CM_INIT);
 	  time = get_timer(0);
@@ -266,6 +277,48 @@ void rce_bsi_cluster(uint32_t cluster, uint32_t bay, uint32_t element)
   if (!bsi) return;
   
   BsiWrite32(bsi,BSI_CLUSTER_ADDR_OFFSET, value);
+  }  
+
+/*
+** ++
+**
+**
+** --
+*/
+
+void rce_uboot_version(const char *buffer, uint32_t len)
+  {
+  Bsi bsi = LookupBsi();
+  unsigned* val = (unsigned*)buffer;
+  unsigned  idx = 0;
+  
+  if (!bsi) return;
+  
+  do {
+    BsiWrite32(bsi,BSI_UBOOT_VERSION_OFFSET+idx++,*val++);
+     }
+  while ((idx < BSI_UBOOT_VERSION_SIZE) && ((idx*4) < len));
+  }  
+
+/*
+** ++
+**
+**
+** --
+*/
+
+void rce_dat_version(const char *buffer, uint32_t len)
+  {
+  Bsi bsi = LookupBsi();
+  unsigned* val = (unsigned*)buffer;
+  unsigned  idx = 0;
+  
+  if (!bsi) return;
+  
+  do {
+    BsiWrite32(bsi,BSI_DAT_VERSION_OFFSET+idx++,*val++);
+     }
+  while ((idx < BSI_DAT_VERSION_SIZE) && ((idx*4) < len));
   }  
 
 /*

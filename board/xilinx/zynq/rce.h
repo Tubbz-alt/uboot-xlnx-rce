@@ -30,9 +30,12 @@
 
 #define NUM_FPGA_CLKS                   4
 
-void rce_init(uint64_t mac, uint32_t phy, uint32_t dtm);
+void rce_init(uint64_t mac, uint32_t phy);
 void rce_bsi_status(uint32_t status);
 void rce_bsi_group(const char *buffer);
 void rce_bsi_cluster(uint32_t slot, uint32_t cmb, uint32_t element);
 void rce_fpga_clock(uint32_t clk, uint32_t freq);
+void rce_uboot_version(const char *buffer, uint32_t len);
+void rce_dat_version(const char *buffer, uint32_t len);
+
 #endif /* RCE_H */

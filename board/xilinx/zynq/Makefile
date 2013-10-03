@@ -27,8 +27,11 @@ include $(TOPDIR)/config.mk
 datroot  := $(DAT_ROOT)
 datbuild := $(datroot)/build
 dattgt   := arm-eabi-rceCA9-opt
+datsvn   := '"$(shell LC_ALL=C svnversion -n $(datroot))"'
+gitrev   :=  "$(shell git rev-parse --short HEAD)"
+gittag   := '"$(shell git describe --tags $(gitrev))"'
 
-CFLAGS   += -DDAT_BOARD_SUBDIR=rce -DDAT_GENERATION_SUBDIR=gen3 -I$(datroot)
+CFLAGS   += -DDAT_BOARD_SUBDIR=rce -DDAT_GENERATION_SUBDIR=gen3 -DDAT_SVN_REV=$(datsvn) -DUBOOT_GIT_TAG=$(gittag) -I$(datroot)
 
 LIB	  = $(obj)lib$(BOARD).o
 

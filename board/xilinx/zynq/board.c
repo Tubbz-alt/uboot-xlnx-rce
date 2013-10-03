@@ -25,6 +25,7 @@
 #include <netdev.h>
 #include <zynqpl.h>
 #include <fpga.h>
+#include <version.h>
 #include <asm/arch/hardware.h>
 #include <asm/arch/sys_proto.h>
 
@@ -62,6 +63,8 @@ void set_fpga_freq(void);
 
 #ifdef CONFIG_ZYNQ_RCE
 #define GROUP_NAME_SIZE    32
+const char uboot_version[] __attribute__ ((aligned(4))) = UBOOT_GIT_TAG;
+const char dat_version[]   __attribute__ ((aligned(4))) = DAT_SVN_REV;
 void configure_bsi(void);
 #endif
 
@@ -316,7 +319,6 @@ void configure_bsi(void)
     uint64_t u64;
   } mac;
   uint32_t phy = 0;
-  uint32_t dtm = 0;  
   char *tmp;
 
 #ifdef CONFIG_BSI_ENV
@@ -359,7 +361,7 @@ void configure_bsi(void)
       element = simple_strtoul(tmp, NULL, 16);
       }
 
-    rce_bsi_group(group); 
+    rce_bsi_group(group);
     rce_bsi_cluster(cluster,bay,element);
     }
 #endif /* CONFIG_BSI_ENV */
@@ -389,17 +391,8 @@ void configure_bsi(void)
     phy = simple_strtoul(tmp, NULL, 16);
     }
 
-  /*
-   * Set the dtm configuration using
-   * the cfgdtm environment variable.
-   * The value is ignored.
-   */
-  tmp = getenv("cfgdtm");
-  if (tmp != NULL)
-    {     
-    dtm = 1;
-    }
-
-  rce_init(mac.u64,phy,dtm);
+  rce_uboot_version(uboot_version,strlen(uboot_version));
+  rce_dat_version(dat_version,strlen(dat_version));
+  rce_init(mac.u64,phy);
   }
 #endif /* CONFIG_ZYNQ_RCE */
