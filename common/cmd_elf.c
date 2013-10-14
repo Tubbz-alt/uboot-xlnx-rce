@@ -138,6 +138,47 @@ int do_bootelf(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 }
 
 /* ======================================================================
+ * Interpreter command to load an arbitrary ELF image into memory.
+ * ====================================================================== */
+int do_loadelf(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+{
+	unsigned long addr;		/* Address of the ELF image     */
+	unsigned long rc;		/* Return value from user code  */
+	char *sload, *saddr;
+
+	/* -------------------------------------------------- */
+	int rcode = 0;
+
+	sload = saddr = NULL;
+	if (argc == 3) {
+		sload = argv[1];
+		saddr = argv[2];
+	} else if (argc == 2) {
+		if (argv[1][0] == '-')
+			sload = argv[1];
+		else
+			saddr = argv[1];
+	}
+
+	if (saddr)
+		addr = simple_strtoul(saddr, NULL, 16);
+	else
+		addr = load_addr;
+
+	if (!valid_elf_image(addr))
+		return 1;
+
+	if (sload && sload[1] == 'p')
+		addr = load_elf_image_phdr(addr);
+	else
+		addr = load_elf_image_shdr(addr);
+
+	printf("## Elf load complete\n");
+
+	return rcode;
+}
+
+/* ======================================================================
  * Interpreter command to boot VxWorks from a memory image.  The image can
  * be either an ELF image or a raw binary.  Will attempt to setup the
  * bootline and other parameters correctly.
@@ -359,6 +400,14 @@ static unsigned long load_elf_image_shdr(unsigned long addr)
 U_BOOT_CMD(
 	bootelf,      3,      0,      do_bootelf,
 	"Boot from an ELF image in memory",
+	"[-p|-s] [address]\n"
+	"\t- load ELF image at [address] via program headers (-p)\n"
+	"\t  or via section headers (-s)"
+);
+
+U_BOOT_CMD(
+	loadelf,      3,      0,      do_loadelf,
+	"load an ELF image into memory",
 	"[-p|-s] [address]\n"
 	"\t- load ELF image at [address] via program headers (-p)\n"
 	"\t  or via section headers (-s)"

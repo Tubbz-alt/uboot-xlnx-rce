@@ -34,8 +34,7 @@
 #define GPIO_BANK0_WRITE_ADDR           0xE000A040
 #define GPIO_BANK0_READ_ADDR            0xE000A060
 #define GPIO_CFG_VAL                    0x00004000
-#define GPIO_DTM_MASK                   (1 << 13)
-#define GPIO_DTM_SHIFT                  18
+#define GPIO_DTM_MASK                   (1 << 23)
 
 /* SLCR FPGA clock registers */
 #define SLCR_FPGA_CLK_CTL_BASE          0xF8000170
@@ -159,7 +158,7 @@ int gpio_init(void)
   gpio = *(uint32_t *)GPIO_BANK0_READ_ADDR;
     
   /* Check dtm bit to determine if this platform is a dtm */
-  if (!((gpio >> GPIO_DTM_SHIFT) & GPIO_DTM_MASK))
+  if (!(gpio & GPIO_DTM_MASK))
     dtm = 1;
 
   /* Configure the BSI ready GPIO pin as an output */
