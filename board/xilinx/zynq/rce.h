@@ -24,13 +24,12 @@
 #define BSI_BOOT_RESPONSE_NOT_BOOTED    0x000000FF
 #define BSI_BOOT_RESPONSE_OCM_INIT      0x000000FE
 #define BSI_BOOT_RESPONSE_AXI_INIT      0x000000FD
-#define BSI_BOOT_RESPONSE_BSI_INIT      0x000000FC
-#define BSI_BOOT_RESPONSE_CM_INIT       0x000000FB
-#define BSI_BOOT_RESPONSE_OS_HANDOFF    0x000000FA
+#define BSI_BOOT_RESPONSE_CM_INIT       0x000000FC
+#define BSI_BOOT_RESPONSE_OS_HANDOFF    0x000000FB
 
 #define NUM_FPGA_CLKS                   4
 
-void rce_init(uint64_t mac, uint32_t phy);
+int  rce_init(uint64_t mac, uint32_t phy);
 void rce_bsi_status(uint32_t status);
 void rce_bsi_group(const char *buffer);
 void rce_bsi_cluster(uint32_t slot, uint32_t cmb, uint32_t element);

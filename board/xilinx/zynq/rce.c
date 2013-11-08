@@ -24,6 +24,8 @@
 #include DAT_PUBLIC(tool,    map,  Lookup.h)
 #include DAT_PUBLIC(tool,    map,  MapAxi.h)
 #include DAT_PUBLIC(tool,    map,  MapOcm.h)
+#include DAT_PUBLIC(tool,    port, Ib.h)
+#include DAT_PUBLIC(tool,    port, Ob.h)
 #include DAT_PUBLIC(service, cmb,  BSI_cfg.h)
 #include DAT_PUBLIC(service, cmb,  Bsi.h)
 #include DAT_PUBLIC(cm,      boot, cm.h)
@@ -46,7 +48,7 @@
 
 /* 
  * Add externs for missing symbols provided in common.h.
- * Cannot include common.h due to errors caused by including datCode.hh.
+ * Cannot include common.h due to confict errors caused by including datCode.hh.
  */
 extern int printf(const char *fmt, ...)
 		__attribute__ ((format (__printf__, 1, 2)));
@@ -57,6 +59,8 @@ extern int sprintf(char *buf, const char *fmt, ...)
 extern unsigned long get_timer (unsigned long base);
 
 extern void * memset(void *,int,int);
+
+extern void udelay(int usecs);
   
 /*
 ** ++
@@ -67,26 +71,78 @@ extern void * memset(void *,int,int);
 
 int axi_init(Bsi bsi, Ocm ocm, Axi axi)
   {
+  int i,j;
+  uint32_t base;
+  IbPort ibport;
+  IbHdr  ibhdr;
+  ObPort obport;
+  ObHdr  obhdr;
+  
   BsiWrite32(bsi,BSI_BOOT_RESPONSE_OFFSET,BSI_BOOT_RESPONSE_AXI_INIT); 
   
   /* set the dma base address for all fifos */
-  *(uint32_t *)(axi + AXI_MEM_CHAN_BASE_ADDR) = ocm + OCM_FIFO_READ_OFFSET;
+  *(uint32_t *)(axi + AXI_MEM_CHAN_BASE_ADDR) = ocm + OCM_FIFO_OFFSET;
 
   /* disable all interrupts */
   *(uint32_t *)(axi + AXI_INTR_ENAB_OFFSET) = 0;
 
-  /* disable all fifo toggling */
-  *(uint32_t *)(axi + AXI_FIFO_TOGGLE_OFFSET) = 0;
-
   /* configure the cache policy for AXI transactions */
-  *(uint32_t *)(axi + AXI_CACHE_CFG_OFFSET) = 0xf;
+  *(uint32_t *)(axi + AXI_HDR_RD_CACHE_OFFSET) = 0xf;
+  *(uint32_t *)(axi + AXI_HDR_WR_CACHE_OFFSET) = 0xf;
   
-  /* configure the bsi fifo, both sides */
-  *(uint32_t *)(axi + AXI_FIFO_CFG_OFFSET + (AXI_BSI_FIFO_ID*8))      = AXI_BSI_FIFO_ID;    
-  *(uint32_t *)(axi + AXI_FIFO_CFG_OFFSET + ((AXI_BSI_FIFO_ID*8)+4))  = AXI_BSI_FIFO_ID;  
+  /* preload inbound free list fifos */
+  base = OCM_IB_HDR_OFFSET;
+  for (i=0; i<OCM_IB_HDR_CHAN_COUNT; i++)
+    {
+    ibport = IbPortAlloc(axi, ocm, i);
+    if (!ibport)
+      {
+      printf("%s: failure allocating inbound port for engine %d\n",__func__,i);
+      return -1;
+      }
+    for (j=0; j<OCM_IB_HDR_MAX_ENTRIES; j++)
+      {
+      ibhdr = (uint32_t *)(ocm+base);
+      
+      /* write the offset to the free list fifo */
+      IbHdrFree(ibport,ibhdr);
+            
+      /* allow transaction to complete */
+      udelay(1);
 
+      /* calculate the next header offset */
+      base += OCM_HDR_MAX_ENTRY_LEN;
+      }
+    }
+    
+  /* preload outbound free list fifos */
+  base = OCM_OB_HDR_OFFSET;
+  for (i=0; i<OCM_OB_HDR_CHAN_COUNT; i++)
+    {
+    obport = ObPortAlloc(axi, ocm, i);
+    if (!obport)
+      {
+      printf("%s: failure allocating outbound port for engine %d\n",__func__,i);
+      return -1;
+      }
+
+    for (j=0; j<OCM_OB_HDR_MAX_ENTRIES; j++)
+      {
+      obhdr = (uint32_t *)(ocm+base);
+                  
+      /* write the offset to the descriptor fifo */
+      ObHdrFree(obport,obhdr);
+      
+      /* allow transaction to complete */
+      udelay(1);
+      
+      /* calculate the next header offset */
+      base += OCM_HDR_MAX_ENTRY_LEN;
+      }
+    }
+  
   /* enable all fifos */
-  *(uint32_t *)(axi + AXI_FIFO_ENABLE_OFFSET) = 0x1fffff;
+  *(uint32_t *)(axi + AXI_FIFO_ENABLE_OFFSET) = 0x1ff;
   
   return 0;
   }
@@ -98,7 +154,7 @@ int axi_init(Bsi bsi, Ocm ocm, Axi axi)
 ** --
 */
 
-int bsi_init(Bsi bsi, uint64_t mac, uint32_t phy)
+int bsi_init(Bsi bsi, Ocm ocm, uint64_t mac, uint32_t phy)
   {
   int i;
   union {
@@ -116,8 +172,11 @@ int bsi_init(Bsi bsi, uint64_t mac, uint32_t phy)
   for (i=0; i<6; i++)
     macBsi.u8[i] = macNet.u8[5-i];
 
+  /* intialize the BSI OCM fifo */
+  memset((void *)(ocm + OCM_IB_BSI_FIFO_OFFSET),0x80,OCM_FIFO_MEM_SIZE);  
+  
   /* Initialize the BSI */
-  BsiWrite32(bsi,BSI_BOOT_RESPONSE_OFFSET,BSI_BOOT_RESPONSE_BSI_INIT);
+  BsiWrite32(bsi,BSI_BOOT_RESPONSE_OFFSET,BSI_BOOT_RESPONSE_NOT_BOOTED);
   BsiSetup(bsi, phy, macBsi.u64);
   sprintf((char *)ethaddr,"%02x:%02x:%02x:%02x:%02x:%02x",macNet.u8[0],macNet.u8[1],macNet.u8[2],macNet.u8[3],macNet.u8[4],macNet.u8[5]);
   printf("Net:   bsi mac %s\n",ethaddr);
@@ -136,8 +195,20 @@ int ocm_init(Bsi bsi, Ocm ocm)
   {    
   BsiWrite32(bsi,BSI_BOOT_RESPONSE_OFFSET,BSI_BOOT_RESPONSE_OCM_INIT);
     
-  /* Initialize OCM space */
-  memset((void *)(ocm + OCM_FIFO_READ_OFFSET),0x80,OCM_FIFO_READ_SIZE);
+  /* inbound memory space */
+  memset((void *)(ocm + OCM_IB_HDR_FIFO_OFFSET),0x80,OCM_IB_HDR_CHAN_COUNT*OCM_FIFO_MEM_SIZE);  
+  
+  /* outbound port control */
+  memset((void *)(ocm + OCM_OB_PORT_CTL_OFFSET),0x12,OCM_OB_PORT_MEM_SIZE);
+
+  /* inbound port control */
+  memset((void *)(ocm + OCM_IB_PORT_CTL_OFFSET),0x34,OCM_IB_PORT_MEM_SIZE);
+
+  /* outbound headers */
+  memset((void *)(ocm + OCM_OB_HDR_OFFSET),0x56,OCM_OB_HDR_MEM_SIZE);
+
+  /* inbound headers */
+  memset((void *)(ocm + OCM_IB_HDR_OFFSET),0x78,OCM_IB_HDR_MEM_SIZE);
   
   return 0;
   }
@@ -184,7 +255,7 @@ int gpio_init(void)
 ** --
 */
 
-void rce_init(uint64_t mac, uint32_t phy)
+int rce_init(uint64_t mac, uint32_t phy)
 {
   Axi axi = 0;
   Bsi bsi = 0;
@@ -193,38 +264,40 @@ void rce_init(uint64_t mac, uint32_t phy)
   uint32_t isDtm = 0;
 
   bsi = LookupBsi();
-  if (bsi)
-    {
-    BsiWrite32(bsi,BSI_BOOT_RESPONSE_OFFSET,BSI_BOOT_RESPONSE_NOT_BOOTED);
-    ocm = LookupOcm();
-    if (ocm)
-      {
-      if (!ocm_init(bsi,ocm))
-        {      
-        axi = LookupAxi();
-        if (axi)
-          {
-          if (!axi_init(bsi,ocm,axi))
-            bsi_init(bsi,mac,phy);
-          }
-        }
-      }
-    
-#ifndef CONFIG_BSI_ENV
-    /* initialize the gpio, signal ipmi, and get dtm */
-    isDtm = gpio_init();
-#endif    
+  if (!bsi) return -1;
 
-    /* cm init must be executed after the ipmi has been signaled */
-    if (axi && ocm && isDtm)    
-      {
-      BsiWrite32(bsi,BSI_BOOT_RESPONSE_OFFSET,BSI_BOOT_RESPONSE_CM_INIT);
-	  time = get_timer(0);
-      cm_net_init(axi,ocm);
-	  time = get_timer(time);
-	  printf("Net:   cm_net_init completed in %lu ms\n", time);
-      }
+  ocm = LookupOcm();
+  if (!ocm) return -1;
+  
+  /* write ipmi parameters to the bsi */
+  bsi_init(bsi,ocm,mac,phy);
+
+#ifndef CONFIG_BSI_ENV
+  /* initialize the gpio, signal ipmi, and get dtm presence */
+  isDtm = gpio_init();
+#endif
+
+  axi = LookupAxi();
+  if (!axi) return -1;
+    
+  if (!ocm_init(bsi,ocm))
+    {
+    if (axi_init(bsi,ocm,axi))
+      return -1;
     }
+  else return -1;
+  
+  /* cm init must be executed after the ipmi has been signaled */
+  if (axi && ocm && isDtm)
+    {
+    BsiWrite32(bsi,BSI_BOOT_RESPONSE_OFFSET,BSI_BOOT_RESPONSE_CM_INIT);
+	time = get_timer(0);
+    cm_net_init(axi,ocm);
+	time = get_timer(time);
+	printf("Net:   cm_net_init completed in %lu ms\n", time);
+    }
+  
+  return 0;
 }
 
 /*

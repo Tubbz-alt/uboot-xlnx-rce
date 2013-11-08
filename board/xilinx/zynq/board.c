@@ -65,7 +65,9 @@ void set_fpga_freq(void);
 #define GROUP_NAME_SIZE    32
 const char uboot_version[] __attribute__ ((aligned(4))) = UBOOT_GIT_TAG;
 const char dat_version[]   __attribute__ ((aligned(4))) = DAT_SVN_REV;
-void configure_bsi(void);
+int fpga_loaded = 0;
+int bsi_ready   = 0;
+int configure_bsi(void);
 #endif
 
 int board_init(void)
@@ -122,6 +124,7 @@ int board_late_init(void)
 #ifdef CONFIG_ZYNQ_LOAD_FPGA
     cmd_tbl_t *bcmd;
     ulong size;
+    int ret = 0;
     char *filesize;
     char * const argv[6] = { "fatload", "mmc", "0:1", FPGA_LOAD_ADDR_STR, FPGA_BIT_FILE, NULL };
 	unsigned long time;    
@@ -135,7 +138,7 @@ int board_late_init(void)
 	/* Locate the fatload command */
 	bcmd = find_cmd("fatload");
 	if (!bcmd) {
-		printf("Error - 'fatload' command not present.\n");
+		printf("%s: Error - 'fatload' command not present.\n",__func__);
 		return -1;
 	}
 
@@ -145,7 +148,7 @@ int board_late_init(void)
      */
 	if (do_fat_fsload(bcmd, 0, 5, argv) != 0)
       {
-        printf("error loading bitstream file %s\n",FPGA_BIT_FILE);
+        printf("%s: error loading bitstream file %s\n",__func__,FPGA_BIT_FILE);
 		return -1;
       }
 
@@ -156,7 +159,7 @@ int board_late_init(void)
     filesize = getenv("filesize");
 	if (NULL == filesize)
       {
-      printf("filesize not in environment!\n");
+      printf("%s: filesize not in environment!\n",__func__);
       return -1;
       }
 
@@ -167,10 +170,14 @@ int board_late_init(void)
      * Load FPGA fabric with the bitstream.
      */
 	time = get_timer(0);
-     
-    fpga_loadbitstream(FPGA_DEV_NUM, (char *)FPGA_LOAD_ADDR, (size_t)size);
+    
+    ret = fpga_loadbitstream(FPGA_DEV_NUM, (char *)FPGA_LOAD_ADDR, (size_t)size);
 
 	time = get_timer(time);
+    
+    if (ret != FPGA_SUCCESS) return -1;
+    
+    fpga_loaded = 1;
 
 	printf("%d bitstream bytes loaded in %lu ms", (int)size, time);
 	if (time > 0) {
@@ -207,11 +214,11 @@ int board_late_init(void)
 #else /* !CONFIG_ZYNQ_RCE */
 
     /* configure the bsi */
-    configure_bsi();
+    ret = configure_bsi();    
 
 #endif /* !CONFIG_ZYNQ_RCE */
 
-	return 0;
+	return ret;
 }
 
 #ifdef CONFIG_CMD_NET
@@ -279,7 +286,7 @@ int dram_init(void)
 
 void show_boot_progress(int val)
 {    
-    if (val == BOOTSTAGE_ID_RUN_OS)
+    if ((val == BOOTSTAGE_ID_RUN_OS) && fpga_loaded && bsi_ready)
       rce_bsi_status(BSI_BOOT_RESPONSE_OS_HANDOFF);
 }
 
@@ -312,7 +319,7 @@ void set_fpga_freq(void)
 #endif /* CONFIG_FPGA */
 
 #ifdef CONFIG_ZYNQ_RCE
-void configure_bsi(void)
+int configure_bsi(void)
   {
   union {
     uint8_t  u8[8];
@@ -320,6 +327,7 @@ void configure_bsi(void)
   } mac;
   uint32_t phy = 0;
   char *tmp;
+  int ret = 0;
 
 #ifdef CONFIG_BSI_ENV
   char group[GROUP_NAME_SIZE];
@@ -391,8 +399,13 @@ void configure_bsi(void)
     phy = simple_strtoul(tmp, NULL, 16);
     }
 
+  ret = rce_init(mac.u64,phy);
+  if (!ret) bsi_ready = 1;
+  else return ret;
+  
   rce_uboot_version(uboot_version,strlen(uboot_version));
   rce_dat_version(dat_version,strlen(dat_version));
-  rce_init(mac.u64,phy);
+  
+  return ret;
   }
 #endif /* CONFIG_ZYNQ_RCE */
