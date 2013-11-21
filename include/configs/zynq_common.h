@@ -228,10 +228,6 @@
     "modeboot=sdboot_ext3\0"	\
 	"sdboot_rtems=echo Copying RTEMS from SD to RAM... && " \
 		"mmcinfo && " \
-		"fatload mmc 0:5 0x2A00000 ${rtems_cfg} && " \
-        "loadelf 0x2A00000 && "\
-		"fatload mmc 0:5 0x2000000 ${rtems_usr} && " \
-        "loadelf 0x2000000 && "\
 		"fatload mmc 0:5 0x3000000 ${rtems_image} && " \
 		"bootm 0x3000000\0" \
 	"sdboot_ramdisk=echo Copying Linux from SD to RAM... && " \

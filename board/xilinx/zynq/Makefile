@@ -31,7 +31,9 @@ datsvn   := '"$(shell LC_ALL=C svnversion -n $(datroot))"'
 gitrev   :=  "$(shell git rev-parse --short HEAD)"
 gittag   := '"$(shell git describe --tags $(gitrev))"'
 
-CFLAGS   += -DDAT_BOARD_SUBDIR=rce -DDAT_GENERATION_SUBDIR=gen3 -DDAT_SVN_REV=$(datsvn) -DUBOOT_GIT_TAG=$(gittag) -I$(datroot)
+ZYNQCFLAGS  := -I$(datroot) -DDAT_BOARD_SUBDIR=rce -DDAT_GENERATION_SUBDIR=gen3 -DDAT_SVN_REV=$(datsvn) -DUBOOT_GIT_TAG=$(gittag)
+CFLAGS      += $(ZYNQCFLAGS)
+CPPFLAGS    += $(ZYNQCFLAGS) # needed for depend
 
 LIB	  = $(obj)lib$(BOARD).o
 
@@ -39,9 +41,16 @@ COBJS-y	 := rce.o board.o
 
 COBJS	 := $(sort $(COBJS-y))
 
+ZYNQOBJS := $(datbuild)/tool/lib/$(dattgt)/libmap.a  $(datbuild)/tool/lib/$(dattgt)/libport.a 
+
+#this library is only required for targets that do not configure the bsi using the environment
+ifndef CONFIG_BSI_ENV
+ZYNQOBJS += $(datbuild)/cm/lib/$(dattgt)/libboot.a
+endif
+
 SRCS	 := $(COBJS:.o=.c)
 OBJS	 := $(addprefix $(obj),$(COBJS))
-OBJS     += $(datbuild)/tool/lib/$(dattgt)/libmap.a  $(datbuild)/tool/lib/$(dattgt)/libport.a $(datbuild)/cm/lib/$(dattgt)/libboot.a
+OBJS     += $(ZYNQOBJS)
 
 $(LIB):	$(obj).depend $(OBJS)
 	$(call cmd_link_o_target, $(OBJS))

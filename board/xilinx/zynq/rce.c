@@ -90,6 +90,10 @@ int axi_init(Bsi bsi, Ocm ocm, Axi axi)
   *(uint32_t *)(axi + AXI_HDR_RD_CACHE_OFFSET) = 0xf;
   *(uint32_t *)(axi + AXI_HDR_WR_CACHE_OFFSET) = 0xf;
   
+  /* configure the base offsets for the port allocators */
+  *(uint32_t *)(ocm + OCM_OB_PORT_CTL_OFFSET) = OCM_OB_PORT_BASE_OFFSET;
+  *(uint32_t *)(ocm + OCM_IB_PORT_CTL_OFFSET) = OCM_IB_PORT_BASE_OFFSET;
+  
   /* preload inbound free list fifos */
   base = OCM_IB_HDR_OFFSET;
   for (i=0; i<OCM_IB_HDR_CHAN_COUNT; i++)
@@ -260,8 +264,10 @@ int rce_init(uint64_t mac, uint32_t phy)
   Axi axi = 0;
   Bsi bsi = 0;
   Ocm ocm = 0;
+#ifndef CONFIG_BSI_ENV  
   unsigned long time;
   uint32_t isDtm = 0;
+#endif
 
   bsi = LookupBsi();
   if (!bsi) return -1;
@@ -286,7 +292,8 @@ int rce_init(uint64_t mac, uint32_t phy)
       return -1;
     }
   else return -1;
-  
+
+#ifndef CONFIG_BSI_ENV
   /* cm init must be executed after the ipmi has been signaled */
   if (axi && ocm && isDtm)
     {
@@ -296,7 +303,7 @@ int rce_init(uint64_t mac, uint32_t phy)
 	time = get_timer(time);
 	printf("Net:   cm_net_init completed in %lu ms\n", time);
     }
-  
+#endif
   return 0;
 }
 
