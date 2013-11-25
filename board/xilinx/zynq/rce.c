@@ -304,6 +304,9 @@ int rce_init(uint64_t mac, uint32_t phy)
 	printf("Net:   cm_net_init completed in %lu ms\n", time);
     }
 #endif
+
+  BsiWrite32(bsi,BSI_BOOT_RESPONSE_OFFSET,BSI_BOOT_RESPONSE_RCE_READY);
+  
   return 0;
 }
 
