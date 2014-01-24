@@ -72,7 +72,8 @@ int valid_elf_image(unsigned long addr)
 		return 0;
 	}
 
-	if (ehdr->e_type != ET_EXEC) {
+    /* added by smaldona@slac.stanford.edu - allow dynamic elf */
+	if ((ehdr->e_type != ET_EXEC) && (ehdr->e_type != ET_DYN)) {
 		printf("## Not a 32-bit elf image at address 0x%08lx\n", addr);
 		return 0;
 	}
