@@ -26,8 +26,8 @@
 #include DAT_PUBLIC(tool,    map,  MapOcm.h)
 #include DAT_PUBLIC(tool,    port, Ib.h)
 #include DAT_PUBLIC(tool,    port, Ob.h)
-#include DAT_PUBLIC(service, cmb,  BSI_cfg.h)
-#include DAT_PUBLIC(service, cmb,  Bsi.h)
+#include DAT_PUBLIC(tool,    bsi,  Bsi_Cfg.h)
+#include DAT_PUBLIC(tool,    bsi,  Bsi.h)
 #include DAT_PUBLIC(cm,      boot, cm.h)
 
 /* GPIO settings */
