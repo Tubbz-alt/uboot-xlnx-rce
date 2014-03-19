@@ -45,7 +45,7 @@ ZYNQOBJS := $(datbuild)/tool/lib/$(dattgt)/libmap.a
 
 #this library is only required for targets that do not configure the bsi using the environment
 ifndef CONFIG_BSI_ENV
-ZYNQOBJS += $(datbuild)/cm/lib/$(dattgt)/libboot.a
+ZYNQOBJS += $(datbuild)/cm/lib/$(dattgt)/libboot.a $(datbuild)/tool/lib/$(dattgt)/libport.a
 endif
 
 SRCS	 := $(COBJS:.o=.c)
