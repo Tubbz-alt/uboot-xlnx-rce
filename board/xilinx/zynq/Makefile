@@ -41,7 +41,7 @@ COBJS-y	 := rce.o board.o
 
 COBJS	 := $(sort $(COBJS-y))
 
-ZYNQOBJS := $(datbuild)/tool/lib/$(dattgt)/libmap.a  $(datbuild)/tool/lib/$(dattgt)/libport.a 
+ZYNQOBJS := $(datbuild)/tool/lib/$(dattgt)/libmap.a
 
 #this library is only required for targets that do not configure the bsi using the environment
 ifndef CONFIG_BSI_ENV

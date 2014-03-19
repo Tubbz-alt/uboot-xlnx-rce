@@ -24,8 +24,6 @@
 #include DAT_PUBLIC(tool,    map,  Lookup.h)
 #include DAT_PUBLIC(tool,    map,  MapAxi.h)
 #include DAT_PUBLIC(tool,    map,  MapOcm.h)
-#include DAT_PUBLIC(tool,    port, Ib.h)
-#include DAT_PUBLIC(tool,    port, Ob.h)
 #include DAT_PUBLIC(tool,    bsi,  Bsi_Cfg.h)
 #include DAT_PUBLIC(tool,    bsi,  Bsi.h)
 #include DAT_PUBLIC(cm,      boot, cm.h)
@@ -71,82 +69,10 @@ extern void udelay(int usecs);
 
 int axi_init(Bsi bsi, Ocm ocm, Axi axi)
   {
-  int i,j;
-  uint32_t base;
-  IbPort ibport;
-  IbHdr  ibhdr;
-  ObPort obport;
-  ObHdr  obhdr;
+  BsiWrite32(bsi,BSI_BOOT_RESPONSE_OFFSET,BSI_BOOT_RESPONSE_AXI_INIT);
   
-  BsiWrite32(bsi,BSI_BOOT_RESPONSE_OFFSET,BSI_BOOT_RESPONSE_AXI_INIT); 
-  
-  /* set the dma base address for all fifos */
-  *(uint32_t *)(axi + AXI_MEM_CHAN_BASE_ADDR) = ocm + OCM_FIFO_OFFSET;
-
-  /* disable all interrupts */
-  *(uint32_t *)(axi + AXI_INTR_ENAB_OFFSET) = 0;
-
-  /* configure the cache policy for AXI transactions */
-  *(uint32_t *)(axi + AXI_HDR_RD_CACHE_OFFSET) = 0xf;
-  *(uint32_t *)(axi + AXI_HDR_WR_CACHE_OFFSET) = 0xf;
-  
-  /* configure the base offsets for the port allocators */
-  *(uint32_t *)(ocm + OCM_OB_PORT_CTL_OFFSET) = OCM_OB_PORT_BASE_OFFSET;
-  *(uint32_t *)(ocm + OCM_IB_PORT_CTL_OFFSET) = OCM_IB_PORT_BASE_OFFSET;
-  
-  /* preload inbound free list fifos */
-  base = OCM_IB_HDR_OFFSET;
-  for (i=0; i<OCM_IB_HDR_CHAN_COUNT; i++)
-    {
-    ibport = IbPortAlloc(axi, ocm, i);
-    if (!ibport)
-      {
-      printf("%s: failure allocating inbound port for engine %d\n",__func__,i);
-      return -1;
-      }
-    for (j=0; j<OCM_IB_HDR_MAX_ENTRIES; j++)
-      {
-      ibhdr = (uint32_t *)(ocm+base);
-      
-      /* write the offset to the free list fifo */
-      IbHdrFree(ibport,ibhdr);
-            
-      /* allow transaction to complete */
-      udelay(1);
-
-      /* calculate the next header offset */
-      base += OCM_HDR_MAX_ENTRY_LEN;
-      }
-    }
-    
-  /* preload outbound free list fifos */
-  base = OCM_OB_HDR_OFFSET;
-  for (i=0; i<OCM_OB_HDR_CHAN_COUNT; i++)
-    {
-    obport = ObPortAlloc(axi, ocm, i);
-    if (!obport)
-      {
-      printf("%s: failure allocating outbound port for engine %d\n",__func__,i);
-      return -1;
-      }
-
-    for (j=0; j<OCM_OB_HDR_MAX_ENTRIES; j++)
-      {
-      obhdr = (uint32_t *)(ocm+base);
-                  
-      /* write the offset to the descriptor fifo */
-      ObHdrFree(obport,obhdr);
-      
-      /* allow transaction to complete */
-      udelay(1);
-      
-      /* calculate the next header offset */
-      base += OCM_HDR_MAX_ENTRY_LEN;
-      }
-    }
-  
-  /* enable all fifos */
-  *(uint32_t *)(axi + AXI_FIFO_ENABLE_OFFSET) = 0x1ff;
+  /* enable the BSI fifo */
+  *(uint32_t *)(axi + AXI_FIFO_ENABLE_OFFSET) = (1 << AXI_BSI_FIFO_ID);
   
   return 0;
   }
@@ -198,22 +124,6 @@ int bsi_init(Bsi bsi, Ocm ocm, uint64_t mac, uint32_t phy)
 int ocm_init(Bsi bsi, Ocm ocm)
   {    
   BsiWrite32(bsi,BSI_BOOT_RESPONSE_OFFSET,BSI_BOOT_RESPONSE_OCM_INIT);
-    
-  /* inbound memory space */
-  memset((void *)(ocm + OCM_IB_HDR_FIFO_OFFSET),0x80,OCM_IB_HDR_CHAN_COUNT*OCM_FIFO_MEM_SIZE);  
-  
-  /* outbound port control */
-  memset((void *)(ocm + OCM_OB_PORT_CTL_OFFSET),0x12,OCM_OB_PORT_MEM_SIZE);
-
-  /* inbound port control */
-  memset((void *)(ocm + OCM_IB_PORT_CTL_OFFSET),0x34,OCM_IB_PORT_MEM_SIZE);
-
-  /* outbound headers */
-  memset((void *)(ocm + OCM_OB_HDR_OFFSET),0x56,OCM_OB_HDR_MEM_SIZE);
-
-  /* inbound headers */
-  memset((void *)(ocm + OCM_IB_HDR_OFFSET),0x78,OCM_IB_HDR_MEM_SIZE);
-  
   return 0;
   }
 
