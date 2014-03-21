@@ -71,6 +71,9 @@ int axi_init(Bsi bsi, Ocm ocm, Axi axi)
   {
   BsiWrite32(bsi,BSI_BOOT_RESPONSE_OFFSET,BSI_BOOT_RESPONSE_AXI_INIT);
   
+  /* set the dma base address for all fifos */
+  *(uint32_t *)(axi + AXI_MEM_CHAN_BASE_ADDR) = ocm + OCM_FIFO_OFFSET;
+  
   /* enable the BSI fifo */
   *(uint32_t *)(axi + AXI_FIFO_ENABLE_OFFSET) = (1 << AXI_BSI_FIFO_ID);
   
@@ -124,6 +127,10 @@ int bsi_init(Bsi bsi, Ocm ocm, uint64_t mac, uint32_t phy)
 int ocm_init(Bsi bsi, Ocm ocm)
   {    
   BsiWrite32(bsi,BSI_BOOT_RESPONSE_OFFSET,BSI_BOOT_RESPONSE_OCM_INIT);
+  
+  /* initialize inbound memory space */
+  memset((void *)(ocm + OCM_IB_HDR_FIFO_OFFSET),0x80,OCM_IB_HDR_CHAN_COUNT*OCM_FIFO_MEM_SIZE);  
+  
   return 0;
   }
 
