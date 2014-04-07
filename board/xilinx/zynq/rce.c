@@ -72,7 +72,7 @@ int axi_init(Bsi bsi, Ocm ocm, Axi axi)
   BsiWrite32(bsi,BSI_BOOT_RESPONSE_OFFSET,BSI_BOOT_RESPONSE_AXI_INIT);
   
   /* set the dma base address for all fifos */
-  *(uint32_t *)(axi + AXI_MEM_CHAN_BASE_ADDR) = ocm + OCM_FIFO_OFFSET;
+  *(uint32_t *)(axi + AXI_MEM_CHAN_BASE_OFFSET) = ocm + OCM_FIFO_OFFSET;
   
   /* enable the BSI fifo */
   *(uint32_t *)(axi + AXI_FIFO_ENABLE_OFFSET) = (1 << AXI_BSI_FIFO_ID);
