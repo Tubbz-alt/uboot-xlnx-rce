@@ -17,16 +17,16 @@
 ** --
 */
 
-#include "datCode.hh"
+#include <stdint.h>
 #include "rce.h"
 #include <config.h>
 
-#include DAT_PUBLIC(tool,    map,  Lookup.h)
-#include DAT_PUBLIC(tool,    map,  MapAxi.h)
-#include DAT_PUBLIC(tool,    map,  MapOcm.h)
-#include DAT_PUBLIC(tool,    bsi,  Bsi_Cfg.h)
-#include DAT_PUBLIC(tool,    bsi,  Bsi.h)
-#include DAT_PUBLIC(cm,      boot, cm.h)
+#include "map/Lookup.h"
+#include "map/MapAxi.h"
+#include "map/MapOcm.h"
+#include "bsi/Bsi_Cfg.h"
+#include "bsi/Bsi.h"
+#include "boot/cm.h"
 
 /* GPIO settings */
 #define GPIO_DIRM0_ADDR                 0xE000A204

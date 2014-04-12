@@ -31,7 +31,7 @@ datsvn   := '"$(shell LC_ALL=C svnversion -n $(datroot))"'
 gitrev   :=  "$(shell git rev-parse --short HEAD)"
 gittag   := '"$(shell git describe --tags $(gitrev))"'
 
-ZYNQCFLAGS  := -I$(datroot) -DDAT_BOARD_SUBDIR=rce -DDAT_GENERATION_SUBDIR=gen3 -DDAT_SVN_REV=$(datsvn) -DUBOOT_GIT_TAG=$(gittag)
+ZYNQCFLAGS  := -I$(datbuild)/$(dattgt)/include/rce -DDAT_SVN_REV=$(datsvn) -DUBOOT_GIT_TAG=$(gittag)
 CFLAGS      += $(ZYNQCFLAGS)
 CPPFLAGS    += $(ZYNQCFLAGS) # needed for depend
 
@@ -41,11 +41,12 @@ COBJS-y	 := rce.o board.o
 
 COBJS	 := $(sort $(COBJS-y))
 
-ZYNQOBJS := $(datbuild)/tool/lib/$(dattgt)/libmap.a
+ZYNQOBJS := $(datbuild)/$(dattgt)/lib/libmap.a
 
-#this library is only required for targets that do not configure the bsi using the environment
+#libboot.a - DTM switch configuration
+#libport.a - BSI firmware FIFO
 ifndef CONFIG_BSI_ENV
-ZYNQOBJS += $(datbuild)/cm/lib/$(dattgt)/libboot.a $(datbuild)/tool/lib/$(dattgt)/libport.a
+ZYNQOBJS += $(datbuild)/$(dattgt)/lib/libboot.a $(datbuild)/$(dattgt)/lib/libport.a
 endif
 
 SRCS	 := $(COBJS:.o=.c)
