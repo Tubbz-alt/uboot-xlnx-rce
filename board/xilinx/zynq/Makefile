@@ -31,7 +31,7 @@ datsvn   := '"$(shell LC_ALL=C svnversion -n $(datroot))"'
 gitrev   :=  "$(shell git rev-parse --short HEAD)"
 gittag   := '"$(shell git describe --tags $(gitrev))"'
 
-ZYNQCFLAGS  := -I$(datbuild)/$(dattgt)/include/rce -DDAT_SVN_REV=$(datsvn) -DUBOOT_GIT_TAG=$(gittag)
+ZYNQCFLAGS  := -I$(datbuild)/$(dattgt)/include/core -DDAT_SVN_REV=$(datsvn) -DUBOOT_GIT_TAG=$(gittag)
 CFLAGS      += $(ZYNQCFLAGS)
 CPPFLAGS    += $(ZYNQCFLAGS) # needed for depend
 
