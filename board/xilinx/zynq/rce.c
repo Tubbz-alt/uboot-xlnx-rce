@@ -22,8 +22,6 @@
 #include <config.h>
 
 #include "map/Lookup.h"
-#include "map/MapAxi.h"
-#include "map/MapOcm.h"
 #include "bsi/Bsi_Cfg.h"
 #include "bsi/Bsi.h"
 #include "boot/cm.h"
@@ -67,27 +65,7 @@ extern void udelay(int usecs);
 ** --
 */
 
-int axi_init(Bsi bsi, Ocm ocm, Axi axi)
-  {
-  BsiWrite32(bsi,BSI_BOOT_RESPONSE_OFFSET,BSI_BOOT_RESPONSE_AXI_INIT);
-  
-  /* set the dma base address for all fifos */
-  *(uint32_t *)(axi + AXI_MEM_CHAN_BASE_OFFSET) = ocm + OCM_FIFO_OFFSET;
-  
-  /* enable the BSI fifo */
-  *(uint32_t *)(axi + AXI_FIFO_ENABLE_OFFSET) = (1 << AXI_BSI_FIFO_ID);
-  
-  return 0;
-  }
-
-/*
-** ++
-**
-**
-** --
-*/
-
-int bsi_init(Bsi bsi, Ocm ocm, uint64_t mac, uint32_t phy)
+int bsi_init(Bsi bsi, uint64_t mac, uint32_t phy)
   {
   int i;
   union {
@@ -104,9 +82,6 @@ int bsi_init(Bsi bsi, Ocm ocm, uint64_t mac, uint32_t phy)
   /* Swap the mac from network order to little endian */
   for (i=0; i<6; i++)
     macBsi.u8[i] = macNet.u8[5-i];
-
-  /* intialize the BSI OCM fifo */
-  memset((void *)(ocm + OCM_IB_BSI_FIFO_OFFSET),0x80,OCM_FIFO_MEM_SIZE);  
   
   /* Initialize the BSI */
   BsiWrite32(bsi,BSI_BOOT_RESPONSE_OFFSET,BSI_BOOT_RESPONSE_NOT_BOOTED);
@@ -114,23 +89,6 @@ int bsi_init(Bsi bsi, Ocm ocm, uint64_t mac, uint32_t phy)
   sprintf((char *)ethaddr,"%02x:%02x:%02x:%02x:%02x:%02x",macNet.u8[0],macNet.u8[1],macNet.u8[2],macNet.u8[3],macNet.u8[4],macNet.u8[5]);
   printf("Net:   bsi mac %s\n",ethaddr);
 
-  return 0;
-  }
-
-/*
-** ++
-**
-**
-** --
-*/
-
-int ocm_init(Bsi bsi, Ocm ocm)
-  {    
-  BsiWrite32(bsi,BSI_BOOT_RESPONSE_OFFSET,BSI_BOOT_RESPONSE_OCM_INIT);
-  
-  /* initialize inbound memory space */
-  memset((void *)(ocm + OCM_IB_HDR_FIFO_OFFSET),0x80,OCM_IB_HDR_CHAN_COUNT*OCM_FIFO_MEM_SIZE);  
-  
   return 0;
   }
 
@@ -178,9 +136,7 @@ int gpio_init(void)
 
 int rce_init(uint64_t mac, uint32_t phy)
 {
-  Axi axi = 0;
   Bsi bsi = 0;
-  Ocm ocm = 0;
 #ifndef CONFIG_BSI_ENV  
   unsigned long time;
   uint32_t isDtm = 0;
@@ -188,35 +144,22 @@ int rce_init(uint64_t mac, uint32_t phy)
 
   bsi = LookupBsi();
   if (!bsi) return -1;
-
-  ocm = LookupOcm();
-  if (!ocm) return -1;
   
   /* write ipmi parameters to the bsi */
-  bsi_init(bsi,ocm,mac,phy);
+  bsi_init(bsi,mac,phy);
 
 #ifndef CONFIG_BSI_ENV
   /* initialize the gpio, signal ipmi, and get dtm presence */
   isDtm = gpio_init();
 #endif
 
-  axi = LookupAxi();
-  if (!axi) return -1;
-    
-  if (!ocm_init(bsi,ocm))
-    {
-    if (axi_init(bsi,ocm,axi))
-      return -1;
-    }
-  else return -1;
-
 #ifndef CONFIG_BSI_ENV
   /* cm init must be executed after the ipmi has been signaled */
-  if (axi && ocm && isDtm)
+  if (isDtm)
     {
     BsiWrite32(bsi,BSI_BOOT_RESPONSE_OFFSET,BSI_BOOT_RESPONSE_CM_INIT);
 	time = get_timer(0);
-    cm_net_init(axi,ocm);
+    cm_net_init(bsi);
 	time = get_timer(time);
 	printf("Net:   cm_net_init completed in %lu ms\n", time);
     }
