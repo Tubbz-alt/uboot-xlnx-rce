@@ -44,9 +44,8 @@ COBJS	 := $(sort $(COBJS-y))
 ZYNQOBJS := $(datbuild)/$(dattgt)/lib/libmap.a
 
 #libboot.a - DTM switch configuration
-#libport.a - BSI firmware FIFO
 ifndef CONFIG_BSI_ENV
-ZYNQOBJS += $(datbuild)/$(dattgt)/lib/libboot.a $(datbuild)/$(dattgt)/lib/libport.a
+ZYNQOBJS += $(datbuild)/$(dattgt)/lib/libboot.a
 endif
 
 SRCS	 := $(COBJS:.o=.c)
