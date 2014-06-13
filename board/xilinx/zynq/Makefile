@@ -41,7 +41,9 @@ COBJS-y	 := rce.o board.o
 
 COBJS	 := $(sort $(COBJS-y))
 
-ZYNQOBJS := $(datbuild)/$(dattgt)/lib/libmap.a
+#libmap.a  - LookupBsi
+#libumem.a - axi gp1 bsi base address
+ZYNQOBJS := $(datbuild)/$(dattgt)/lib/libmap.a $(datbuild)/$(dattgt)/lib/libumem.a
 
 #libboot.a - DTM switch configuration
 ifndef CONFIG_BSI_ENV
