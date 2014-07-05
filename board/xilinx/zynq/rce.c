@@ -42,6 +42,8 @@
 
 #define BSI_INSERT(b,s,v)  ((v << (b##_V_##s)) & (b##_M_##s))
 
+static unsigned _isDtm = 0;
+
 /* 
  * Add externs for missing symbols provided in common.h.
  * Cannot include common.h due to confict errors caused by including datCode.hh.
@@ -139,7 +141,6 @@ int rce_init(uint64_t mac, uint32_t phy)
   Bsi bsi = 0;
 #ifndef CONFIG_BSI_ENV  
   unsigned long time;
-  uint32_t isDtm = 0;
 #endif
 
   bsi = LookupBsi();
@@ -149,13 +150,13 @@ int rce_init(uint64_t mac, uint32_t phy)
   bsi_init(bsi,mac,phy);
 
 #ifndef CONFIG_BSI_ENV
-  /* initialize the gpio, signal ipmi, and get dtm presence */
-  isDtm = gpio_init();
+  /* initialize the gpio, signal ipmi, and get dtm flag */
+  _isDtm = gpio_init();
 #endif
 
 #ifndef CONFIG_BSI_ENV
   /* cm init must be executed after the ipmi has been signaled */
-  if (isDtm)
+  if (_isDtm)
     {
     BsiWrite32(bsi,BSI_BOOT_RESPONSE_OFFSET,BSI_BOOT_RESPONSE_CM_INIT);
 	time = get_timer(0);
@@ -169,6 +170,19 @@ int rce_init(uint64_t mac, uint32_t phy)
   
   return 0;
 }
+
+/*
+** ++
+**
+**
+** --
+*/
+
+int rce_isdtm(void)
+  {
+  return _isDtm;
+  }
+
 
 /*
 ** ++
@@ -220,6 +234,40 @@ void rce_bsi_cluster(uint32_t cluster, uint32_t bay, uint32_t element)
   
   BsiWrite32(bsi,BSI_CLUSTER_ADDR_OFFSET, value);
   }  
+
+/*
+** ++
+**
+**
+** --
+*/
+
+int rce_bsi_slot(void)
+  {
+  Bsi bsi = LookupBsi();
+  if (!bsi) return -1;
+  
+  return BSI_CLUSTER_FROM_CLUSTER_ADDR(BsiRead32(bsi,BSI_CLUSTER_ADDR_OFFSET));
+  }
+  
+/*
+** ++
+**
+**
+** --
+*/
+
+int rce_bsi_ipinfo(unsigned *ip, unsigned *gw, unsigned *nm)
+  {
+  Bsi bsi = LookupBsi();
+  if (!bsi) return -1;
+    
+  *ip = (unsigned)BsiRead32(bsi, BSI_CLUSTER_IP_INFO_OFFSET+3);
+  *nm = (unsigned)BsiRead32(bsi, BSI_CLUSTER_IP_INFO_OFFSET+4);
+  *gw = (unsigned)BsiRead32(bsi, BSI_CLUSTER_IP_INFO_OFFSET+5);
+  
+  return 0;
+  }
 
 /*
 ** ++

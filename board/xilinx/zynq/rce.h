@@ -31,7 +31,10 @@
 #define NUM_FPGA_CLKS                   4
 
 int  rce_init(uint64_t mac, uint32_t phy);
+int  rce_isdtm(void);
+int  rce_bsi_ipinfo(unsigned *ip, unsigned *gw, unsigned *nm);
 void rce_bsi_status(uint32_t status);
+int  rce_bsi_slot(void);
 void rce_bsi_group(const char *buffer);
 void rce_bsi_cluster(uint32_t slot, uint32_t cmb, uint32_t element);
 void rce_fpga_clock(uint32_t clk, uint32_t freq);

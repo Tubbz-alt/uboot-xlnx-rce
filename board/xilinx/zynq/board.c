@@ -45,6 +45,11 @@ DECLARE_GLOBAL_DATA_PTR;
 #define SD_MODE            0x00000005
 #define JTAG_MODE          0x00000000
 
+#define MAX_ROOTSTR_LEN    64                                                         
+#define MAX_IPSTR_LEN      64                                                         
+#define MAX_BOOTARGS_LEN   256                                                        
+#define MAX_STRBUF_LEN     MAX_BOOTARGS_LEN+MAX_ROOTSTR_LEN+MAX_IPSTR_LEN             
+
 #ifdef CONFIG_FPGA
 Xilinx_desc fpga;
 
@@ -284,10 +289,129 @@ int dram_init(void)
 	return 0;
 }
 
+int set_bootargs(void)
+{
+  unsigned ip;
+  unsigned nm;
+  unsigned gw;
+  char src[MAX_STRBUF_LEN];
+  char dst[MAX_STRBUF_LEN];
+  char *bootdefs;
+  char ipstr[16];
+  char gwstr[16];
+  char nmstr[16];
+  
+  memset(ipstr,0,16);
+  memset(gwstr,0,16);
+  memset(nmstr,0,16);
+
+  /* get static ip info from bsi */
+  int status = rce_bsi_ipinfo(&ip,&gw,&nm);
+  if(status) return -1;
+  
+  /* convert to host order */
+  ip = ntohl(ip) - rce_bsi_slot();
+  gw = ntohl(gw);
+  nm = ntohl(nm);
+      
+  if(ip)
+    sprintf(ipstr,"%d.%d.%d.%d",(int)(ip>>24)&0xff,(int)(ip>>16)&0xff,(int)(ip>>8)&0xff,(int)((ip>>0)&0xff));
+  else
+    sprintf(ipstr,"%s","");
+  
+  if(gw)
+    sprintf(gwstr,"%d.%d.%d.%d",(int)(gw>>24)&0xff,(int)(gw>>16)&0xff,(int)(gw>>8)&0xff,(int)(gw>>0)&0xff);  
+  else
+    sprintf(gwstr,"%s","");
+
+  if(nm)
+    sprintf(nmstr,"%d.%d.%d.%d",(int)(nm>>24)&0xff,(int)(nm>>16)&0xff,(int)(nm>>8)&0xff,(int)(nm>>0)&0xff);
+  else
+    sprintf(nmstr,"%s","");
+    
+  sprintf(src," ip=%s::%s:%s::eth0",ipstr,gwstr,nmstr);
+  
+  /* concatenate default bootargs from environment with ip info */
+  bootdefs = getenv("bootdefs");
+  if(bootdefs)
+    {
+    int bootlen = strlen(bootdefs);
+    strncpy(dst,bootdefs,(bootlen<MAX_BOOTARGS_LEN) ? bootlen : MAX_BOOTARGS_LEN);
+    strcat(dst,src);
+    }
+  
+  /* add bootargs to environment */
+  setenv("bootargs",dst);
+  
+  printf("Net:   bsi ip %s::%s:%s::eth0",ipstr,gwstr,nmstr);
+  printf("\n");
+  
+  return 0;
+}
+
+int set_rootfs(void)
+{
+  char buf[MAX_STRBUF_LEN];
+  char *args;
+  char *mode;
+  char *fs;
+  
+  /* select the correct root fs bootarg for the current boot mode */
+  mode = getenv("modeboot");
+  if(!mode)
+    {
+    printf("No modeboot in env\n");
+    return -1;
+    }
+
+  args = getenv("bootargs");
+  if(!args)
+    {
+    printf("No bootargs in env\n");
+    return -1;
+    }
+
+  if(!strcmp(mode,"sdboot_ramdisk"))
+    fs = getenv("ramdisk_rootfs");
+  else
+    fs = getenv("sd_rootfs");
+
+  if(!fs)
+    {
+    printf("No rootfs in env\n");
+    return -1;
+    }
+  
+  /* ensure storage space for rootfs arg string */  
+  int len = strlen(fs);
+  if(len > (MAX_ROOTSTR_LEN-strlen(" root=")))
+    {
+    printf("rootfs exceeds max len of %d\n",MAX_ROOTSTR_LEN-strlen(" root="));
+    return -1;
+    }
+
+  /* concatenate default bootargs from environment with root fs arg */
+  if(strlen(args) > (MAX_BOOTARGS_LEN-len))
+    {
+    printf("bootargs+rootfs exceeds max len of %d\n",MAX_BOOTARGS_LEN);
+    return -1;
+    }
+
+  sprintf(buf,"%s root=%s",args,fs);
+  
+  /* update bootargs in environment */
+  setenv("bootargs",buf);
+  
+  return 0;
+}
+
 void show_boot_progress(int val)
 {    
-    if ((val == BOOTSTAGE_ID_RUN_OS) && fpga_loaded && bsi_ready)
+    if ((val == BOOTSTAGE_ID_CHECK_BOOT_OS) && fpga_loaded && bsi_ready)
+      {
+      if(rce_isdtm()) set_rootfs();
       rce_bsi_status(BSI_BOOT_RESPONSE_OS_HANDOFF);
+      }
 }
 
 #ifdef CONFIG_FPGA
@@ -402,6 +526,8 @@ int configure_bsi(void)
   ret = rce_init(mac.u64,phy);
   if (!ret) bsi_ready = 1;
   else return ret;
+  
+  if(rce_isdtm()) set_bootargs();
   
   rce_uboot_version(uboot_version,strlen(uboot_version));
   rce_dat_version(dat_version,strlen(dat_version));
