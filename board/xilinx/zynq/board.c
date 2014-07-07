@@ -310,7 +310,11 @@ int set_bootargs(void)
   if(status) return -1;
   
   /* convert to host order */
-  ip = ntohl(ip) - rce_bsi_slot();
+  ip = ntohl(ip);
+  /* do not assign broadcast address */
+  if((ip & 0xff) == 0xff)
+    ip -= 1;
+  ip -= rce_bsi_slot()-1;
   gw = ntohl(gw);
   nm = ntohl(nm);
       
