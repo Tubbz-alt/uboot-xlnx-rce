@@ -317,6 +317,7 @@ int set_bootargs(void)
     ip -= 1;
   ip -= rce_bsi_slot()-1;
   gw = ntohl(gw);
+  if(!gw) gw = 0xc0a80001; // 192.168.0.1
   nm = ntohl(nm);
   if(!nm) nm = 0xffff0000; // 255.255.0.0
       
