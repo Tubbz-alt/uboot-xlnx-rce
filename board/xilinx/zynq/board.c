@@ -311,12 +311,14 @@ int set_bootargs(void)
   
   /* convert to host order */
   ip = ntohl(ip);
+  if(!ip) ip = 0xc0a800fe; // 192.168.0.254
   /* do not assign broadcast address */
   if((ip & 0xff) == 0xff)
     ip -= 1;
   ip -= rce_bsi_slot()-1;
   gw = ntohl(gw);
   nm = ntohl(nm);
+  if(!nm) nm = 0xffff0000; // 255.255.0.0
       
   if(ip)
     sprintf(ipstr,"%d.%d.%d.%d",(int)(ip>>24)&0xff,(int)(ip>>16)&0xff,(int)(ip>>8)&0xff,(int)((ip>>0)&0xff));
