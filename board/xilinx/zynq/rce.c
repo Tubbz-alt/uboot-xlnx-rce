@@ -40,6 +40,9 @@
 #define SLCR_FPGA_CLK_DIV_MASK          0x3f00
 #define IO_PLL_CLK_FREQ                 1000000000 /* 1000 Mhz */
 
+/* Ethernet phy configuration register offset */
+#define ETH_PHYCFG_OFFSET               13
+
 #define BSI_INSERT(b,s,v)  ((v << (b##_V_##s)) & (b##_M_##s))
 
 static unsigned _isDtm = 0;
@@ -77,6 +80,12 @@ int bsi_init(Bsi bsi, uint64_t mac, uint32_t phy)
   } macNet, macBsi;
 
   uint8_t ethaddr[32];  
+
+  uint32_t *axi = (uint32_t*)LookupAxiFw();
+  if(!axi) return -1;
+
+  uint32_t fwphy = axi[ETH_PHYCFG_OFFSET];
+  if(!fwphy) fwphy = phy;
   
   macNet.u64 = mac;
   macBsi.u64 = 0;
@@ -87,7 +96,7 @@ int bsi_init(Bsi bsi, uint64_t mac, uint32_t phy)
   
   /* Initialize the BSI */
   BsiWrite32(bsi,BSI_BOOT_RESPONSE_OFFSET,BSI_BOOT_RESPONSE_NOT_BOOTED);
-  BsiSetup(bsi, phy, macBsi.u64);
+  BsiSetup(bsi, fwphy, macBsi.u64);
   sprintf((char *)ethaddr,"%02x:%02x:%02x:%02x:%02x:%02x",macNet.u8[0],macNet.u8[1],macNet.u8[2],macNet.u8[3],macNet.u8[4],macNet.u8[5]);
   printf("Net:   bsi mac %s\n",ethaddr);
 

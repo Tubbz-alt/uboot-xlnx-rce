@@ -50,6 +50,7 @@ DECLARE_GLOBAL_DATA_PTR;
 #define MAX_BOOTARGS_LEN   256                                                        
 #define MAX_STRBUF_LEN     MAX_BOOTARGS_LEN+MAX_ROOTSTR_LEN+MAX_IPSTR_LEN             
 
+
 #ifdef CONFIG_FPGA
 Xilinx_desc fpga;
 
@@ -75,6 +76,12 @@ int bsi_ready   = 0;
 int configure_bsi(void);
 #endif
 
+void abort_boot(void)
+  {
+  setenv("bootdelay", "-1");
+  main_loop();  
+  }
+  
 int board_init(void)
 {
 #ifdef CONFIG_FPGA
@@ -144,7 +151,7 @@ int board_late_init(void)
 	bcmd = find_cmd("fatload");
 	if (!bcmd) {
 		printf("%s: Error - 'fatload' command not present.\n",__func__);
-		return -1;
+		abort_boot();
 	}
 
     /* 
@@ -154,7 +161,7 @@ int board_late_init(void)
 	if (do_fat_fsload(bcmd, 0, 5, argv) != 0)
       {
         printf("%s: error loading bitstream file %s\n",__func__,FPGA_BIT_FILE);
-		return -1;
+		abort_boot();
       }
 
     /* 
@@ -165,7 +172,7 @@ int board_late_init(void)
 	if (NULL == filesize)
       {
       printf("%s: filesize not in environment!\n",__func__);
-      return -1;
+      abort_boot();
       }
 
     /* convert file size string into a longword */
@@ -180,7 +187,11 @@ int board_late_init(void)
 
 	time = get_timer(time);
     
-    if (ret != FPGA_SUCCESS) return -1;
+    if (ret != FPGA_SUCCESS)
+      {
+      printf("%s: error loading fpga bitstream!\n",__func__);      
+      abort_boot();
+      }
     
     fpga_loaded = 1;
 
@@ -307,7 +318,11 @@ int set_bootargs(void)
 
   /* get static ip info from bsi */
   int status = rce_bsi_ipinfo(&ip,&gw,&nm);
-  if(status) return -1;
+  if(status)
+    {
+    printf("%s: error getting bsi ip info - %d\n",__func__,status);
+    abort_boot();
+    }
   
   /* convert to host order */
   ip = ntohl(ip);
@@ -368,14 +383,14 @@ int set_rootfs(void)
   if(!mode)
     {
     printf("No modeboot in env\n");
-    return -1;
+    abort_boot();
     }
 
   args = getenv("bootargs");
   if(!args)
     {
     printf("No bootargs in env\n");
-    return -1;
+    abort_boot();
     }
 
   if(!strcmp(mode,"sdboot_ramdisk"))
@@ -386,7 +401,7 @@ int set_rootfs(void)
   if(!fs)
     {
     printf("No rootfs in env\n");
-    return -1;
+    abort_boot();
     }
   
   /* ensure storage space for rootfs arg string */  
@@ -394,14 +409,14 @@ int set_rootfs(void)
   if(len > (MAX_ROOTSTR_LEN-strlen(" root=")))
     {
     printf("rootfs exceeds max len of %d\n",MAX_ROOTSTR_LEN-strlen(" root="));
-    return -1;
+    abort_boot();
     }
 
   /* concatenate default bootargs from environment with root fs arg */
   if(strlen(args) > (MAX_BOOTARGS_LEN-len))
     {
     printf("bootargs+rootfs exceeds max len of %d\n",MAX_BOOTARGS_LEN);
-    return -1;
+    abort_boot();
     }
 
   sprintf(buf,"%s root=%s",args,fs);
@@ -413,13 +428,20 @@ int set_rootfs(void)
 }
 
 void show_boot_progress(int val)
-{    
-    if ((val == BOOTSTAGE_ID_CHECK_BOOT_OS) && fpga_loaded && bsi_ready)
+  {    
+  if (val == BOOTSTAGE_ID_CHECK_BOOT_OS)
+    {
+    if(!fpga_loaded || !bsi_ready)
       {
-      if(rce_isdtm()) set_rootfs();
-      rce_bsi_status(BSI_BOOT_RESPONSE_OS_HANDOFF);
+      printf("%s: aborting auto-boot - firmware not loaded\n",__func__);
+      abort_boot();
       }
-}
+
+    if(rce_isdtm()) set_rootfs();
+    
+    rce_bsi_status(BSI_BOOT_RESPONSE_OS_HANDOFF);
+    }
+  }
 
 #ifdef CONFIG_FPGA
 #ifdef CONFIG_ZYNQ_LOAD_FPGA
@@ -513,7 +535,8 @@ int configure_bsi(void)
   mac.u64 = 0;
   if (!eth_getenv_enetaddr("ethaddr",mac.u8))
     {
-    printf("valid ethaddr not in environment!\nNet:   ");
+    printf("%s: no valid mac address in environment!\n",__func__);
+    abort_boot();
     }
 
   /*
@@ -532,7 +555,11 @@ int configure_bsi(void)
 
   ret = rce_init(mac.u64,phy);
   if (!ret) bsi_ready = 1;
-  else return ret;
+  else 
+    {
+    printf("%s: error initializing bsi - %d!\n",__func__,ret);
+    abort_boot();
+    }
   
   if(rce_isdtm()) set_bootargs();
   
