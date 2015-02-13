@@ -40,6 +40,6 @@ void rce_bsi_cluster(uint32_t slot, uint32_t cmb, uint32_t element);
 void rce_fpga_clock(uint32_t clk, uint32_t freq);
 void rce_uboot_version(const char *buffer, uint32_t len);
 void rce_dat_version(const char *buffer, uint32_t len);
-uint64_t rce_mac();
+uint64_t rce_mac(void);
 
 #endif /* RCE_H */
