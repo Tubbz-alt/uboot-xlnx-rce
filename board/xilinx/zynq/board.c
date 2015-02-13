@@ -477,11 +477,11 @@ int configure_bsi(void)
   union {
     uint8_t  u8[8];
     uint64_t u64;
-  } mac;
+  } mac,macBsi;
   uint32_t phy = 0;
   char *tmp;
   int ret = 0;
-
+  
 #ifdef CONFIG_BSI_ENV
   char group[GROUP_NAME_SIZE];
   uint32_t cluster = 1;
@@ -560,6 +560,12 @@ int configure_bsi(void)
     printf("%s: error initializing bsi - %d!\n",__func__,ret);
     abort_boot();
     }
+      
+  /* update MAC address in environment */
+  macBsi.u64 = rce_mac();
+  uint8_t ethaddr[32]; 
+  sprintf((char *)ethaddr,"%02x:%02x:%02x:%02x:%02x:%02x",macBsi.u8[5],macBsi.u8[4],macBsi.u8[3],macBsi.u8[2],macBsi.u8[1],macBsi.u8[0]);
+  setenv("ethaddr",(char*)ethaddr);
   
   if(rce_isdtm()) set_bootargs();
   

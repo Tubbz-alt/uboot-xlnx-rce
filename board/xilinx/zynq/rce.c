@@ -22,6 +22,7 @@
 #include <config.h>
 
 #include "map/Lookup.h"
+#include "map/MapAxi.h"
 #include "bsi/Bsi_Cfg.h"
 #include "bsi/Bsi.h"
 #include "boot/cm.h"
@@ -87,18 +88,36 @@ int bsi_init(Bsi bsi, uint64_t mac, uint32_t phy)
   uint32_t fwphy = axi[ETH_PHYCFG_OFFSET];
   if(!fwphy) fwphy = phy;
   
-  macNet.u64 = mac;
-  macBsi.u64 = 0;
+  /* update BSI with eFUSE and device DNA */
+  uint32_t efuse = *(uint32_t*)((uint32_t)axi+AXI_EFUSE_OFFSET);
+  uint64_t dna = ((uint64_t)(*(uint32_t*)((uint32_t)axi+AXI_DNA0_OFFSET))<<32);
+  dna |= (uint64_t)(*(uint32_t*)((uint32_t)axi+AXI_DNA1_OFFSET));
+
+  BsiWrite32(bsi,BSI_EFUSE_OFFSET,efuse);
+  BsiWrite64(bsi,BSI_DEVICE_DNA_OFFSET,dna);  
   
-  /* Swap the mac from network order to little endian */
-  for (i=0; i<6; i++)
-    macBsi.u8[i] = macNet.u8[5-i];
+  /* if present, use eFUSE to calculate MAC address, otherwise use passed in argument */
+  if(efuse)
+    {
+    uint32_t offset = (efuse >> 14) & 0x3;
+    macNet.u64 = BsiMacTable[offset] | (efuse & 0x3FFF);
+    macBsi.u64 = macNet.u64;
+    sprintf((char *)ethaddr,"eFUSE mac %02x:%02x:%02x:%02x:%02x:%02x",macBsi.u8[5],macBsi.u8[4],macBsi.u8[3],macBsi.u8[2],macBsi.u8[1],macBsi.u8[0]);
+    }
+  else
+    {
+    macNet.u64 = mac;
+    macBsi.u64 = 0;
+    /* Swap the mac from network order to little endian */
+    for (i=0; i<6; i++)
+      macBsi.u8[i] = macNet.u8[5-i];
+    sprintf((char *)ethaddr,"mac %02x:%02x:%02x:%02x:%02x:%02x",macNet.u8[0],macNet.u8[1],macNet.u8[2],macNet.u8[3],macNet.u8[4],macNet.u8[5]);
+    }
   
   /* Initialize the BSI */
   BsiWrite32(bsi,BSI_BOOT_RESPONSE_OFFSET,BSI_BOOT_RESPONSE_NOT_BOOTED);
   BsiSetup(bsi, fwphy, macBsi.u64);
-  sprintf((char *)ethaddr,"%02x:%02x:%02x:%02x:%02x:%02x",macNet.u8[0],macNet.u8[1],macNet.u8[2],macNet.u8[3],macNet.u8[4],macNet.u8[5]);
-  printf("Net:   bsi mac %s\n",ethaddr);
+  printf("Net:   %s\n",ethaddr);
 
   return 0;
   }
@@ -350,4 +369,17 @@ void rce_fpga_clock(uint32_t clk, uint32_t freq)
   
   /* write the control register */
   *(volatile uint32_t *)reg = val;
+  }
+
+/*
+** ++
+**
+**
+** --
+*/
+
+uint64_t rce_mac(void)
+  {
+  Bsi bsi = LookupBsi();
+  return BsiRead64(bsi,BSI_MAC_ADDR_OFFSET);  
   }
