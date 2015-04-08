@@ -106,6 +106,11 @@ int bsi_init(Bsi bsi, uint64_t mac, uint32_t phy)
     }
   else
     {
+    if(!mac)
+      {
+      printf("%s: no valid mac address in environment!\n",__func__);      
+      return -1;
+      }
     macNet.u64 = mac;
     macBsi.u64 = 0;
     /* Swap the mac from network order to little endian */
@@ -175,7 +180,8 @@ int rce_init(uint64_t mac, uint32_t phy)
   if (!bsi) return -1;
   
   /* write ipmi parameters to the bsi */
-  bsi_init(bsi,mac,phy);
+  int ret = bsi_init(bsi,mac,phy);
+  if(ret != 0) return -1;
 
 #ifndef CONFIG_BSI_ENV
   /* initialize the gpio, signal ipmi, and get dtm flag */

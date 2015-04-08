@@ -533,11 +533,7 @@ int configure_bsi(void)
    */
 
   mac.u64 = 0;
-  if (!eth_getenv_enetaddr("ethaddr",mac.u8))
-    {
-    printf("%s: no valid mac address in environment!\n",__func__);
-    abort_boot();
-    }
+  eth_getenv_enetaddr("ethaddr",mac.u8);
 
   /*
    * Get the PHY configuration using
