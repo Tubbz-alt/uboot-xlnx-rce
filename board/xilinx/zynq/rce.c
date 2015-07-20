@@ -46,8 +46,6 @@
 
 #define BSI_INSERT(b,s,v)  ((v << (b##_V_##s)) & (b##_M_##s))
 
-static unsigned _isDtm = 0;
-
 /* 
  * Add externs for missing symbols provided in common.h.
  * Cannot include common.h due to confict errors caused by including datCode.hh.
@@ -134,18 +132,13 @@ int bsi_init(Bsi bsi, uint64_t mac, uint32_t phy)
 ** --
 */
 
-int gpio_init(void)
+void rce_gpio_init(void)
   {
   uint32_t gpio;
-  int dtm = 0;
 
   /* Read the GPIO bank 0 value */
   gpio = *(uint32_t *)GPIO_BANK0_READ_ADDR;
     
-  /* Check dtm bit to determine if this platform is a dtm */
-  if (!(gpio & GPIO_DTM_MASK))
-    dtm = 1;
-
   /* Configure the BSI ready GPIO pin as an output */
   *(uint32_t *)GPIO_DIRM0_ADDR = GPIO_CFG_VAL;
 
@@ -157,9 +150,7 @@ int gpio_init(void)
    * This tells the IPMI Controller that the
    * BSI parameters are ready for reading.
    */
-  *(uint32_t *)GPIO_OEN0_ADDR  = GPIO_CFG_VAL;
-  
-  return dtm;
+  *(uint32_t *)GPIO_OEN0_ADDR  = GPIO_CFG_VAL;  
 }
 
 /*
@@ -178,19 +169,17 @@ int rce_init(uint64_t mac, uint32_t phy)
 
   bsi = LookupBsi();
   if (!bsi) return -1;
-  
+    
   /* write ipmi parameters to the bsi */
   int ret = bsi_init(bsi,mac,phy);
   if(ret != 0) return -1;
 
-#ifndef CONFIG_BSI_ENV
-  /* initialize the gpio, signal ipmi, and get dtm flag */
-  _isDtm = gpio_init();
-#endif
+  /* signal ipmi via gpio */
+  rce_gpio_init();
 
 #ifndef CONFIG_BSI_ENV
   /* cm init must be executed after the ipmi has been signaled */
-  if (_isDtm)
+  if (rce_is_dtm())
     {
     BsiWrite32(bsi,BSI_BOOT_RESPONSE_OFFSET,BSI_BOOT_RESPONSE_CM_INIT);
 	time = get_timer(0);
@@ -212,9 +201,19 @@ int rce_init(uint64_t mac, uint32_t phy)
 ** --
 */
 
-int rce_isdtm(void)
+int rce_is_dtm(void)
   {
-  return _isDtm;
+  uint32_t gpio;
+  int dtm = 0;
+
+  /* Read the GPIO bank 0 value */
+  gpio = *(uint32_t *)GPIO_BANK0_READ_ADDR;
+    
+  /* Check dtm bit to determine if this platform is a dtm */
+  if (!(gpio & GPIO_DTM_MASK))
+    dtm = 1;
+  
+  return dtm;
   }
 
 

@@ -50,7 +50,6 @@ DECLARE_GLOBAL_DATA_PTR;
 #define MAX_BOOTARGS_LEN   256                                                        
 #define MAX_STRBUF_LEN     MAX_BOOTARGS_LEN+MAX_ROOTSTR_LEN+MAX_IPSTR_LEN             
 
-
 #ifdef CONFIG_FPGA
 Xilinx_desc fpga;
 
@@ -74,6 +73,7 @@ const char dat_version[]   __attribute__ ((aligned(4))) = DAT_SVN_REV;
 int fpga_loaded = 0;
 int bsi_ready   = 0;
 int configure_bsi(void);
+int board_load_fpga(void);
 #endif
 
 void abort_boot(void)
@@ -131,21 +131,45 @@ int board_init(void)
 }
 
 int board_late_init(void)
+  {
+  /* load the fpga fabric */
+  board_load_fpga();
+    
+  /* configure the bsi */
+  return configure_bsi();
+  }
+
+int board_load_fpga(void)
 {
+    int ret = 0;
+
 #ifdef CONFIG_FPGA
 #ifdef CONFIG_ZYNQ_LOAD_FPGA
     cmd_tbl_t *bcmd;
     ulong size;
-    int ret = 0;
     char *filesize;
-    char * const argv[6] = { "fatload", "mmc", "0:1", FPGA_LOAD_ADDR_STR, FPGA_BIT_FILE, NULL };
+    char * argv[6] = { "fatload", "mmc", "0:1", FPGA_LOAD_ADDR_STR, FPGA_BIT_FILE, NULL };
 	unsigned long time;    
-    
+    char      *tmp;
+    uint32_t  loadbit = 0;
+      
     /* 
      * Update fpga clock frequencies prior to
      * loading the fpga fabric.
      */
     set_fpga_freq();
+
+    /* locate bitstream load option in environment */
+    tmp = getenv("loadbit");
+    if (tmp != NULL)      
+      loadbit = simple_strtoul(tmp, NULL, 16);
+      
+    if(!loadbit)
+      {
+      /* use default bitstream included in boot.bin */
+      fpga_loaded = 1;
+      return 0;      
+      }
     
 	/* Locate the fatload command */
 	bcmd = find_cmd("fatload");
@@ -160,7 +184,7 @@ int board_late_init(void)
      */
 	if (do_fat_fsload(bcmd, 0, 5, argv) != 0)
       {
-        printf("%s: error loading bitstream file %s\n",__func__,FPGA_BIT_FILE);
+        printf("%s: error loading bitstream file %s\n",__func__,argv[4]);
 		abort_boot();
       }
 
@@ -177,6 +201,20 @@ int board_late_init(void)
 
     /* convert file size string into a longword */
     size = simple_strtoul(filesize, NULL, 16);    
+
+    /* reset FPGA logic */
+	zynq_slcr_unlock();
+
+	/* Disable AXI interface by asserting FPGA resets */
+	writel(0xF, &slcr_base->fpga_rst_ctrl);
+
+	/* Set Level Shifters DT618760 */
+	writel(0xF, &slcr_base->lvl_shftr_en);
+
+	/* Enable AXI interface by de-asserting FPGA resets */
+	writel(0x0, &slcr_base->fpga_rst_ctrl);
+
+	zynq_slcr_lock();
 
     /*
      * Load FPGA fabric with the bitstream.
@@ -205,34 +243,6 @@ int board_late_init(void)
     
 #endif /* CONFIG_ZYNQ_LOAD_FPGA */
 #endif /* CONFIG_FPGA */
-
-#ifndef CONFIG_ZYNQ_RCE
-	switch ((zynq_slcr_get_boot_mode()) & BOOT_MODES_MASK) {
-	case QSPI_MODE:
-		setenv("modeboot", "qspiboot");
-		break;
-	case NAND_FLASH_MODE:
-		setenv("modeboot", "nandboot");
-		break;
-	case NOR_FLASH_MODE:
-		setenv("modeboot", "norboot");
-		break;
-	case SD_MODE:
-		setenv("modeboot", "sdboot");
-		break;
-	case JTAG_MODE:
-		setenv("modeboot", "jtagboot");
-		break;
-	default:
-		setenv("modeboot", "");
-		break;
-	}
-#else /* !CONFIG_ZYNQ_RCE */
-
-    /* configure the bsi */
-    ret = configure_bsi();    
-
-#endif /* !CONFIG_ZYNQ_RCE */
 
 	return ret;
 }
@@ -426,7 +436,7 @@ int set_rootfs(void)
   
   return 0;
 }
-
+  
 void show_boot_progress(int val)
   {    
   if (val == BOOTSTAGE_ID_CHECK_BOOT_OS)
@@ -437,7 +447,8 @@ void show_boot_progress(int val)
       abort_boot();
       }
 
-    if(rce_isdtm()) set_rootfs();
+    if(rce_is_dtm()) 
+      set_rootfs();
     
     rce_bsi_status(BSI_BOOT_RESPONSE_OS_HANDOFF);
     }
@@ -563,7 +574,7 @@ int configure_bsi(void)
   sprintf((char *)ethaddr,"%02x:%02x:%02x:%02x:%02x:%02x",macBsi.u8[5],macBsi.u8[4],macBsi.u8[3],macBsi.u8[2],macBsi.u8[1],macBsi.u8[0]);
   setenv("ethaddr",(char*)ethaddr);
   
-  if(rce_isdtm()) set_bootargs();
+  if(rce_is_dtm()) set_bootargs();
   
   rce_uboot_version(uboot_version,strlen(uboot_version));
   rce_dat_version(dat_version,strlen(dat_version));

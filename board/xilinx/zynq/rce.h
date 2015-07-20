@@ -31,7 +31,7 @@
 #define NUM_FPGA_CLKS                   4
 
 int  rce_init(uint64_t mac, uint32_t phy);
-int  rce_isdtm(void);
+int  rce_is_dtm(void);
 int  rce_bsi_ipinfo(unsigned *ip, unsigned *gw, unsigned *nm);
 void rce_bsi_status(uint32_t status);
 int  rce_bsi_slot(void);
