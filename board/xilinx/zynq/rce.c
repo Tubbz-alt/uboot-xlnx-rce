@@ -46,6 +46,10 @@
 
 #define BSI_INSERT(b,s,v)  ((v << (b##_V_##s)) & (b##_M_##s))
 
+/* dhcp bsi support */
+#define FABRIC_MAP_WORDS 8 
+#define FABRIC_MAP_SLOTS 16
+
 /* 
  * Add externs for missing symbols provided in common.h.
  * Cannot include common.h due to confict errors caused by including datCode.hh.
@@ -216,6 +220,26 @@ int rce_is_dtm(void)
   return dtm;
   }
 
+
+/*
+** ++
+**
+**
+** --
+*/
+
+int rce_is_dhcp(void)
+  {
+  uint32_t lslot = 0;
+  Bsi bsi = LookupBsi();
+  
+  if (!bsi) return 0;
+  
+  while(!(lslot&0x80000000))
+    lslot = BsiRead32(bsi,BSI_FABRIC_MAP_OFFSET + 
+                      FABRIC_MAP_SLOTS*FABRIC_MAP_WORDS);
+  return ((lslot>>30)&1);
+  }
 
 /*
 ** ++

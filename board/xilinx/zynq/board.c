@@ -403,7 +403,7 @@ int set_rootfs(void)
     abort_boot();
     }
 
-  if(!strcmp(mode,"sdboot_ramdisk"))
+  if(!strcmp(mode,"sdboot_rdisk"))
     fs = getenv("ramdisk_rootfs");
   else
     fs = getenv("sd_rootfs");
@@ -574,7 +574,7 @@ int configure_bsi(void)
   sprintf((char *)ethaddr,"%02x:%02x:%02x:%02x:%02x:%02x",macBsi.u8[5],macBsi.u8[4],macBsi.u8[3],macBsi.u8[2],macBsi.u8[1],macBsi.u8[0]);
   setenv("ethaddr",(char*)ethaddr);
   
-  if(rce_is_dtm()) set_bootargs();
+  if(rce_is_dtm() && rce_is_dhcp()) set_bootargs();
   
   rce_uboot_version(uboot_version,strlen(uboot_version));
   rce_dat_version(dat_version,strlen(dat_version));
