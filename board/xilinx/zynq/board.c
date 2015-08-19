@@ -447,7 +447,7 @@ void show_boot_progress(int val)
       abort_boot();
       }
 
-    if(rce_is_dtm()) 
+    if(rce_is_dtm() && rce_is_dhcp())
       set_rootfs();
     
     rce_bsi_status(BSI_BOOT_RESPONSE_OS_HANDOFF);
