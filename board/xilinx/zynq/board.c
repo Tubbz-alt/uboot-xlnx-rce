@@ -571,7 +571,7 @@ int configure_bsi(void)
   /* update MAC address in environment */
   macBsi.u64 = rce_mac();
   uint8_t ethaddr[32]; 
-  sprintf((char *)ethaddr,"%02x:%02x:%02x:%02x:%02x:%02x",macBsi.u8[5],macBsi.u8[4],macBsi.u8[3],macBsi.u8[2],macBsi.u8[1],macBsi.u8[0]);
+  sprintf((char *)ethaddr,"%02x:%02x:%02x:%02x:%02x:%02x",macBsi.u8[0],macBsi.u8[1],macBsi.u8[2],macBsi.u8[3],macBsi.u8[4],macBsi.u8[5]);
   setenv("ethaddr",(char*)ethaddr);
   
   if(rce_is_dtm() && rce_is_dhcp()) set_bootargs();

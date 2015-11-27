@@ -103,8 +103,11 @@ int bsi_init(Bsi bsi, uint64_t mac, uint32_t phy)
     {
     uint32_t offset = (efuse >> 14) & 0x3;
     macNet.u64 = BsiMacTable[offset] | (efuse & 0x3FFF);
-    macBsi.u64 = macNet.u64;
-    sprintf((char *)ethaddr,"eFUSE mac %02x:%02x:%02x:%02x:%02x:%02x",macBsi.u8[5],macBsi.u8[4],macBsi.u8[3],macBsi.u8[2],macBsi.u8[1],macBsi.u8[0]);
+    macBsi.u64 = 0;    
+    /* Store the mac in network order */
+    for (i=0; i<6; i++)
+      macBsi.u8[i] = macNet.u8[5-i];
+    sprintf((char *)ethaddr,"eFUSE mac %02x:%02x:%02x:%02x:%02x:%02x",macBsi.u8[0],macBsi.u8[1],macBsi.u8[2],macBsi.u8[3],macBsi.u8[4],macBsi.u8[5]);
     }
   else
     {
@@ -113,12 +116,8 @@ int bsi_init(Bsi bsi, uint64_t mac, uint32_t phy)
       printf("%s: no valid mac address in environment!\n",__func__);      
       return -1;
       }
-    macNet.u64 = mac;
-    macBsi.u64 = 0;
-    /* Swap the mac from network order to little endian */
-    for (i=0; i<6; i++)
-      macBsi.u8[i] = macNet.u8[5-i];
-    sprintf((char *)ethaddr,"mac %02x:%02x:%02x:%02x:%02x:%02x",macNet.u8[0],macNet.u8[1],macNet.u8[2],macNet.u8[3],macNet.u8[4],macNet.u8[5]);
+    macBsi.u64 = mac;
+    sprintf((char *)ethaddr,"mac %02x:%02x:%02x:%02x:%02x:%02x",macBsi.u8[0],macBsi.u8[1],macBsi.u8[2],macBsi.u8[3],macBsi.u8[4],macBsi.u8[5]);
     }
   
   /* Initialize the BSI */
