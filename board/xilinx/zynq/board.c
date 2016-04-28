@@ -205,6 +205,8 @@ int board_load_fpga(void)
     /* reset FPGA logic */
 	zynq_slcr_unlock();
 
+#ifdef CONFIG_FPGA_PRELOAD_RESET
+
 	/* Disable AXI interface by asserting FPGA resets */
 	writel(0xF, &slcr_base->fpga_rst_ctrl);
 
@@ -213,6 +215,8 @@ int board_load_fpga(void)
 
 	/* Enable AXI interface by de-asserting FPGA resets */
 	writel(0x0, &slcr_base->fpga_rst_ctrl);
+    
+#endif
 
 	zynq_slcr_lock();
 
@@ -490,6 +494,7 @@ int configure_bsi(void)
     uint64_t u64;
   } mac,macBsi;
   uint32_t phy = 0;
+  uint32_t nocm = 0;
   char *tmp;
   int ret = 0;
   
@@ -560,7 +565,17 @@ int configure_bsi(void)
     phy = simple_strtoul(tmp, NULL, 16);
     }
 
-  ret = rce_init(mac.u64,phy);
+  /*
+   * Get the cm switch init disable using
+   * the nocm environment variable
+   */
+  tmp = getenv("nocm");
+  if (tmp != NULL)
+    {     
+    nocm = simple_strtoul(tmp, NULL, 16);
+    }
+
+  ret = rce_init(mac.u64,phy,nocm);
   if (!ret) bsi_ready = 1;
   else 
     {

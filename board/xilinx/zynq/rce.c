@@ -163,7 +163,7 @@ void rce_gpio_init(void)
 ** --
 */
 
-int rce_init(uint64_t mac, uint32_t phy)
+int rce_init(uint64_t mac, uint32_t phy, uint32_t nocm)
 {
   Bsi bsi = 0;
 #ifndef CONFIG_BSI_ENV  
@@ -182,7 +182,7 @@ int rce_init(uint64_t mac, uint32_t phy)
 
 #ifndef CONFIG_BSI_ENV
   /* cm init must be executed after the ipmi has been signaled */
-  if (rce_is_dtm())
+  if (rce_is_dtm() && !nocm)
     {
     BsiWrite32(bsi,BSI_BOOT_RESPONSE_OFFSET,BSI_BOOT_RESPONSE_CM_INIT);
 	time = get_timer(0);
