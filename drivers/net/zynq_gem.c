@@ -264,7 +264,8 @@ static void phy_detection(struct eth_device *dev)
 			}
 		}
 	}
-	printf("PHY is not detected\n");
+    priv->phyaddr = 0;
+	printf("PHY not detected, assuming PHY at address 0\n");
 }
 
 static int zynq_gem_setup_mac(struct eth_device *dev)

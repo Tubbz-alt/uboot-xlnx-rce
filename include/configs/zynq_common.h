@@ -107,6 +107,7 @@
 #ifdef CONFIG_SYS_ENET
 # define CONFIG_CMD_PING
 # define CONFIG_CMD_MII
+# define CONFIG_CMD_DHCP
 #else
 # undef CONFIG_CMD_NET
 # undef CONFIG_CMD_NFS
