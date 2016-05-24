@@ -33,6 +33,7 @@
 int  rce_init(uint64_t mac, uint32_t phy, uint32_t nocm);
 int  rce_is_dtm(void);
 int  rce_is_dhcp(void);
+int  rce_gpio_reset(void);
 int  rce_bsi_ipinfo(unsigned *ip, unsigned *gw, unsigned *nm);
 void rce_bsi_status(uint32_t status);
 int  rce_bsi_slot(void);

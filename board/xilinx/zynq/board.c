@@ -596,4 +596,8 @@ int configure_bsi(void)
   
   return ret;
   }
+
+ U_BOOT_CMD(bsic, 1, 1, (void*)configure_bsi,"configure BSI","Initialize and configure BSI");
+ U_BOOT_CMD(bsir, 1, 1, (void*)rce_gpio_reset,"reset BSI","Place BSI in reset");
+  
 #endif /* CONFIG_ZYNQ_RCE */

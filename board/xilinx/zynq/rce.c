@@ -163,6 +163,36 @@ void rce_gpio_init(void)
 ** --
 */
 
+int rce_gpio_reset(void)
+  {
+  uint32_t gpio;
+
+  /* 
+   * Disable GPIO BSI ready pin output.
+   * This tells the IPMI Controller that the
+   * BSI parameters are not ready for reading.
+   */
+  *(uint32_t *)GPIO_OEN0_ADDR  = 0;  
+
+  /* Read the GPIO bank 0 value */
+  gpio = *(uint32_t *)GPIO_BANK0_READ_ADDR;
+
+  /* De-assert the BSI ready pin */
+  *(uint32_t *)GPIO_BANK0_WRITE_ADDR = gpio & ~GPIO_CFG_VAL;
+    
+  /* Configure the BSI ready GPIO pin as an input */
+  *(uint32_t *)GPIO_DIRM0_ADDR = 0;
+
+  return 0;
+}
+
+/*
+** ++
+**
+**
+** --
+*/
+
 int rce_init(uint64_t mac, uint32_t phy, uint32_t nocm)
 {
   Bsi bsi = 0;

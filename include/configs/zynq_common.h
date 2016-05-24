@@ -21,10 +21,6 @@
 #define CONFIG_ARMV7 /* CPU */
 #define CONFIG_ZYNQ /* SoC */
 
-/* Default environment */
-#define CONFIG_IPADDR	10.10.70.102
-#define CONFIG_SERVERIP	10.10.70.101
-
 #define CONFIG_SYS_SDRAM_BASE	0
 #define CONFIG_SYS_SDRAM_SIZE	PHYS_SDRAM_1_SIZE
 
@@ -214,34 +210,42 @@
 
 /* Default environment */
 #define CONFIG_EXTRA_ENV_SETTINGS	\
-	"kernel_image=uImage\0"	\
-	"ramdisk_kernel=uImage\0"	\
-	"ramdisk_image=uramdisk.image.gz\0"	\
-	"ramdisk_devicetree=devicetree_ramdisk.dtb\0"	\
-	"devicetree_image=devicetree.dtb\0"	\
-	"rtems_image=urtems.elf\0"	\
-	"bitstream_image=fpga.bit\0"	\
-	"loadbit_addr=0x100000\0"	\
-	"mmc_loadbit_fat=echo Loading bitstream from SD/MMC/eMMC to RAM.. && " \
-		"mmcinfo && " \
-		"fatload mmc 0:1 ${loadbit_addr} ${bitstream_image} && " \
-		"fpga loadb 0 ${loadbit_addr} ${filesize}\0" \
-    "modeboot=sdboot_ext3\0"	\
-	"sdboot_rtems=echo Copying RTEMS from SD to RAM... && " \
-		"mmcinfo && " \
-		"fatload mmc 0:5 0x3000000 ${rtems_image} && " \
-		"bootm 0x3000000\0" \
-	"sdboot_ramdisk=echo Copying Linux from SD to RAM... && " \
-		"mmcinfo && " \
-		"fatload mmc 0:6 0x3000000 ${ramdisk_kernel} && " \
-		"fatload mmc 0:6 0x2A00000 ${ramdisk_devicetree} && " \
-		"fatload mmc 0:6 0x2000000 ${ramdisk_image} && " \
-		"bootm 0x3000000 0x2000000 0x2A00000\0" \
-	"sdboot_ext3=echo Copying Linux from SD to RAM... && " \
-		"mmcinfo && " \
-		"fatload mmc 0:6 0x3000000 ${kernel_image} && " \
-		"fatload mmc 0:6 0x2A00000 ${devicetree_image} && " \
-		"bootm 0x3000000 - 0x2A00000\0"
+    "autoload=no\0" \
+    "bootdefs=console=ttyPS0,115200 rw rootwait earlyprintk\0" \
+    "bootcmd=run $modeboot\0" \
+    "sd_rootfs=/dev/mmcblk0p3\0" \
+    "devicetree_image=devicetree.dtb\0" \
+    "kernel_image=uImage\0" \
+    "loadbit=0\0" \
+    "modeboot=sdboot_linux\0" \
+    "phycfg=1\0" \
+    "ramdisk_devicetree=devicetree_ramdisk.dtb\0" \
+    "ramdisk_image=uramdisk.image.gz\0" \
+    "ramdisk_kernel=uImage\0" \
+    "ramdisk_rootfs=/dev/ram\0" \
+    "rtems_image=urtems.elf\0" \
+    "sdboot_linux=setenv modeboot sdboot_linux && " \
+        "echo Copying Linux from SD to RAM... && mmcinfo && " \
+        "fatload mmc 0:7 0x3000000 ${kernel_image} && " \
+        "fatload mmc 0:7 0x2A00000 ${devicetree_image} && " \
+        "bootm 0x3000000 - 0x2A00000\0" \
+    "sdboot_rdisk=setenv modeboot sdboot_ramdisk && " \
+        "echo Copying Linux from SD to RAM... && mmcinfo && " \
+        "fatload mmc 0:7 0x3000000 ${ramdisk_kernel} && " \
+        "fatload mmc 0:7 0x2A00000 ${ramdisk_devicetree} && " \
+        "fatload mmc 0:7 0x2000000 ${ramdisk_image} && " \
+        "bootm 0x3000000 0x2000000 0x2A00000\0" \
+    "sdboot_rtems=echo Copying RTEMS from SD to RAM... && " \
+        "mmcinfo && fatload mmc 0:5 0x3000000 ${rtems_image} && " \
+        "bootm 0x3000000\0" \
+    "nfsload=nfs 0x3000000 ${rootpath}/boot/${kernel_image} && " \
+        "nfs 0x2A00000 ${rootpath}/boot/${devicetree_image}\0" \
+    "nfsargs=setenv bootargs ${bootdefs} root=/dev/nfs " \
+        "nfsroot=${serverip}:${rootpath} ip=dhcp\0" \
+    "nfsfpga=nfs 0x1000000 ${rootpath}/boot/fpga.bit && " \
+        "fpga loadb 0 0x1000000 ${filesize}\0" \
+    "nfsboot=dhcp && run nfsload && run nfsargs && bsir && " \
+        "run nfsfpga && bsic && bootm 0x3000000 - 0x2A00000\0"
 
 /* default boot is according to the bootmode switch settings */
 #define CONFIG_BOOTCOMMAND		"run $modeboot"
