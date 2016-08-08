@@ -127,6 +127,8 @@ int board_init(void)
 	fpga_add(fpga_xilinx, &fpga);
 #endif
 
+    rce_bsi_status(BSI_BOOT_RESPONSE_NOT_BOOTED);
+
 	return 0;
 }
 
