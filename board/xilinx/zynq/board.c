@@ -61,7 +61,7 @@ Xilinx_desc fpga045 = XILINX_XC7Z045_DESC(0x45);
 Xilinx_desc fpga100 = XILINX_XC7Z100_DESC(0x100);
 #endif
 
-static const char devicetree_10g[] = "devicetree.dtb.10G";
+static const char devicetree_10g[] = "devicetree.dtb.10GAxi";
 
 #ifdef CONFIG_ZYNQ_LOAD_FPGA
 #define FPGA_DEV_NUM       0
