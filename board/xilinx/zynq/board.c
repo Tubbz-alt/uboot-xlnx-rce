@@ -61,6 +61,8 @@ Xilinx_desc fpga045 = XILINX_XC7Z045_DESC(0x45);
 Xilinx_desc fpga100 = XILINX_XC7Z100_DESC(0x100);
 #endif
 
+static const char devicetree_10g[] = "devicetree.dtb.10G";
+
 #ifdef CONFIG_ZYNQ_LOAD_FPGA
 #define FPGA_DEV_NUM       0
 void set_fpga_freq(void);
@@ -592,7 +594,10 @@ int configure_bsi(void)
   setenv("ethaddr",(char*)ethaddr);
   
   if(rce_is_dtm() && rce_is_dhcp()) set_bootargs();
-  
+
+  if(rce_phy() == BSI_PHY_10G)
+    setenv("devicetree_image",devicetree_10g);
+    
   rce_uboot_version(uboot_version,strlen(uboot_version));
   rce_dat_version(dat_version,strlen(dat_version));
   

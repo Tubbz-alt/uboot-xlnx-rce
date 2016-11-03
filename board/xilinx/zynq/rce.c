@@ -441,3 +441,16 @@ uint64_t rce_mac(void)
   Bsi bsi = LookupBsi();
   return BsiRead64(bsi,BSI_MAC_ADDR_OFFSET);  
   }
+
+/*
+** ++
+**
+**
+** --
+*/
+
+uint32_t rce_phy(void)
+  {
+  uint32_t *axi = (uint32_t*)LookupAxiFw();
+  return axi[ETH_PHYCFG_OFFSET];
+  }

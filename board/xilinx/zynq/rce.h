@@ -30,6 +30,9 @@
 
 #define NUM_FPGA_CLKS                   4
 
+#define BSI_PHY_1G    0x1
+#define BSI_PHY_10G   0x03030303
+
 int  rce_init(uint64_t mac, uint32_t phy, uint32_t nocm);
 int  rce_is_dtm(void);
 int  rce_is_dhcp(void);
@@ -43,5 +46,6 @@ void rce_fpga_clock(uint32_t clk, uint32_t freq);
 void rce_uboot_version(const char *buffer, uint32_t len);
 void rce_dat_version(const char *buffer, uint32_t len);
 uint64_t rce_mac(void);
+uint32_t rce_phy(void);
 
 #endif /* RCE_H */
