@@ -498,7 +498,7 @@ int configure_bsi(void)
     uint64_t u64;
   } mac,macBsi;
   uint32_t phy = 0;
-  uint32_t nocm = 0;
+  uint32_t nocm = 1; // by default, exclude cm/fulcrum
   char *tmp;
   int ret = 0;
   
@@ -595,7 +595,7 @@ int configure_bsi(void)
   
   if(rce_is_dtm() && rce_is_dhcp()) set_bootargs();
 
-  if(rce_phy() == BSI_PHY_10G)
+  if((rce_phy() == BSI_PHY_10G) || (rce_phy() == BSI_PHY_1GKX) || (rce_phy() == BSI_PHY_10GKR))
     setenv("devicetree_image",devicetree_10g);
     
   rce_uboot_version(uboot_version,strlen(uboot_version));

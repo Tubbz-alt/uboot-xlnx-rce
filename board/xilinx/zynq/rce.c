@@ -121,7 +121,6 @@ int bsi_init(Bsi bsi, uint64_t mac, uint32_t phy)
     }
   
   /* Initialize the BSI */
-  BsiWrite32(bsi,BSI_BOOT_RESPONSE_OFFSET,BSI_BOOT_RESPONSE_NOT_BOOTED);
   BsiSetup(bsi, fwphy, macBsi.u64);
   printf("Net:   %s\n",ethaddr);
 
@@ -206,6 +205,12 @@ int rce_init(uint64_t mac, uint32_t phy, uint32_t nocm)
   /* write ipmi parameters to the bsi */
   int ret = bsi_init(bsi,mac,phy);
   if(ret != 0) return -1;
+
+  /* if using cm/fulcrum, set bsi version to 2 */
+  if(nocm)
+    BsiWrite32(bsi,BSI_CLUSTER_CFG_VERSION_OFFSET, BSI_CLUSTER_CFG_VERSION);
+  else    
+    BsiWrite32(bsi,BSI_CLUSTER_CFG_VERSION_OFFSET, BSI_CLUSTER_CFG_VERSION_2);
 
   /* signal ipmi via gpio */
   rce_gpio_init();
