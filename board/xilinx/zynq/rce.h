@@ -30,8 +30,10 @@
 
 #define NUM_FPGA_CLKS                   4
 
-#define BSI_PHY_1G    0x1
-#define BSI_PHY_10G   0x03030303
+#define BSI_PHY_1G    0x1        // legacy
+#define BSI_PHY_1GKX  0x2        // AXI
+#define BSI_PHY_10G   0x03030303 // XAUI
+#define BSI_PHY_10GKR 0x0000000A // 10G 1 lane
 
 int  rce_init(uint64_t mac, uint32_t phy, uint32_t nocm);
 int  rce_is_dtm(void);
