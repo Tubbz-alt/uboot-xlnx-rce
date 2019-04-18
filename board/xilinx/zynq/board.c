@@ -547,6 +547,8 @@ int configure_bsi(void)
     }
 #endif /* CONFIG_BSI_ENV */
 
+  printf("Configure BSI called!\n");
+
   /*
    * Get the MAC address using
    * the ethaddr environment variable.
@@ -595,8 +597,10 @@ int configure_bsi(void)
   
   if(rce_is_dtm() && rce_is_dhcp()) set_bootargs();
 
-  if((rce_phy() == BSI_PHY_10G) || (rce_phy() == BSI_PHY_1GKX) || (rce_phy() == BSI_PHY_10GKR))
+  if((rce_phy() == BSI_PHY_10G) || (rce_phy() == BSI_PHY_1GKX) || (rce_phy() == BSI_PHY_10GKR)) {
+    printf("Using 10G devicetree\n");
     setenv("devicetree_image",devicetree_10g);
+  }
     
   rce_uboot_version(uboot_version,strlen(uboot_version));
   rce_dat_version(dat_version,strlen(dat_version));
