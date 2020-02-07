@@ -24,14 +24,14 @@
 include $(TOPDIR)/config.mk
 
 # include the DAT build configuration
-datroot  := $(DAT_ROOT)
-datbuild := $(datroot)/build
-dattgt   := arm-eabi-rceCA9-opt
-datsvn   := '"$(shell LC_ALL=C svnversion -n $(datroot))"'
+#datroot  := $(DAT_ROOT)
+#datbuild := $(datroot)/build
+#dattgt   := arm-eabi-rceCA9-opt
+datsvn   := '"5401"'
 gitrev   :=  "$(shell git rev-parse --short HEAD)"
 gittag   := '"$(shell git describe --tags $(gitrev))"'
 
-ZYNQCFLAGS  := -I$(datbuild)/$(dattgt)/include/core -DDAT_SVN_REV=$(datsvn) -DUBOOT_GIT_TAG=$(gittag)
+ZYNQCFLAGS  := -DDAT_SVN_REV=$(datsvn) -DUBOOT_GIT_TAG=$(gittag)
 CFLAGS      += $(ZYNQCFLAGS)
 CPPFLAGS    += $(ZYNQCFLAGS) # needed for depend
 
@@ -43,12 +43,12 @@ COBJS	 := $(sort $(COBJS-y))
 
 #libmap.a  - LookupBsi
 #libumem.a - axi gp1 bsi base address
-ZYNQOBJS := $(datbuild)/$(dattgt)/lib/libmap.a $(datbuild)/$(dattgt)/lib/libumem.a
+#3ZYNQOBJS := $(datbuild)/$(dattgt)/lib/libmap.a $(datbuild)/$(dattgt)/lib/libumem.a
 
 #libboot.a - DTM switch configuration
-ifndef CONFIG_BSI_ENV
-ZYNQOBJS += $(datbuild)/$(dattgt)/lib/libboot.a
-endif
+#ifndef CONFIG_BSI_ENV
+#ZYNQOBJS += $(datbuild)/$(dattgt)/lib/libboot.a
+#endif
 
 SRCS	 := $(COBJS:.o=.c)
 OBJS	 := $(addprefix $(obj),$(COBJS))

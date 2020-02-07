@@ -21,11 +21,11 @@
 #include "rce.h"
 #include <config.h>
 
-#include "map/Lookup.h"
-#include "map/MapAxi.h"
-#include "bsi/Bsi_Cfg.h"
-#include "bsi/Bsi.h"
-#include "boot/cm.h"
+#include "Lookup.h"
+#include "MapAxi.h"
+#include "Bsi_Cfg.h"
+#include "Bsi.h"
+//#include "boot/cm.h"
 
 /* GPIO settings */
 #define GPIO_DIRM0_ADDR                 0xE000A204
@@ -221,7 +221,7 @@ int rce_init(uint64_t mac, uint32_t phy, uint32_t nocm)
     {
     BsiWrite32(bsi,BSI_BOOT_RESPONSE_OFFSET,BSI_BOOT_RESPONSE_CM_INIT);
 	time = get_timer(0);
-    cm_net_init(bsi);
+    //cm_net_init(bsi);
 	time = get_timer(time);
 	printf("Net:   cm_net_init completed in %lu ms\n", time);
     }
