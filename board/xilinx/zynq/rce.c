@@ -213,7 +213,9 @@ int rce_init(uint64_t mac, uint32_t phy, uint32_t nocm)
     BsiWrite32(bsi,BSI_CLUSTER_CFG_VERSION_OFFSET, BSI_CLUSTER_CFG_VERSION_2);
 
   /* signal ipmi via gpio */
+  printf("Before GPIO Init\n");
   rce_gpio_init();
+  printf("After GPIO Init\n");
 
 #ifndef CONFIG_BSI_ENV
   /* cm init must be executed after the ipmi has been signaled */
@@ -227,7 +229,9 @@ int rce_init(uint64_t mac, uint32_t phy, uint32_t nocm)
     }
 #endif
 
+  printf("Setting ready\n");
   BsiWrite32(bsi,BSI_BOOT_RESPONSE_OFFSET,BSI_BOOT_RESPONSE_RCE_READY);
+  printf("Exit init\n");
   
   return 0;
 }
@@ -241,6 +245,7 @@ int rce_init(uint64_t mac, uint32_t phy, uint32_t nocm)
 
 int rce_is_dtm(void)
   {
+  return 0;
   uint32_t gpio;
   int dtm = 0;
 
